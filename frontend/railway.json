@@ -4,7 +4,7 @@
     "buildCommand": "npm run build"
   },
   "deploy": {
-    "startCommand": "node -e \"const http=require('http'),fs=require('fs'),path=require('path');const PORT=process.env.PORT||3000;http.createServer((req,res)=>{let f=path.join('./dist',req.url==='/'?'/index.html':req.url);if(!fs.existsSync(f))f='./dist/index.html';const ext=path.extname(f);const mime={'html':'text/html','js':'application/javascript','css':'text/css','png':'image/png','svg':'image/svg+xml'};res.writeHead(200,{'Content-Type':mime[ext.slice(1)]||'text/plain'});fs.createReadStream(f).pipe(res)}).listen(PORT,()=>console.log('running on '+PORT))\"",
+    "startCommand": "node server.js",
     "restartPolicyType": "ON_FAILURE"
   }
 }
