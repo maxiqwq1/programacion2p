@@ -6,7 +6,7 @@ from routes.categorias import categorias_bp
 from routes.analisis import analisis_bp
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=False)
 
 app.register_blueprint(auth_bp, url_prefix="/api")
 app.register_blueprint(gastos_bp, url_prefix="/api")
