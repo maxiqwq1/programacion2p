@@ -20,20 +20,25 @@ def register():
 
     password_hash = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
-    try:
-        conn = get_connection()
-        cur = conn.cursor()
-        cur.execute(
-            "INSERT INTO usuarios (nombre, email, password_hash) VALUES (%s, %s, %s) RETURNING id;",
-            (nombre, email, password_hash)
-        )
-        user_id = cur.fetchone()[0]
-        conn.commit()
+    conn = get_connection()
+    cur = conn.cursor()
+
+    # Verificar si el email ya existe
+    cur.execute("SELECT id FROM usuarios WHERE email = %s;", (email,))
+    if cur.fetchone():
         cur.close()
         conn.close()
-        return jsonify({"message": "Usuario creado correctamente.", "id": user_id}), 201
-    except Exception as e:
-        return jsonify({"error": "El email ya está registrado.", "detalle": str(e)}), 409
+        return jsonify({"error": "El email ya está registrado."}), 409
+
+    cur.execute(
+        "INSERT INTO usuarios (nombre, email, password_hash) VALUES (%s, %s, %s) RETURNING id;",
+        (nombre, email, password_hash)
+    )
+    user_id = cur.fetchone()[0]
+    conn.commit()
+    cur.close()
+    conn.close()
+    return jsonify({"message": "Usuario creado correctamente.", "id": user_id}), 201
 
 @auth_bp.route("/login", methods=["POST"])
 def login():
