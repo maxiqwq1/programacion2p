@@ -4,9 +4,11 @@ from routes.auth import auth_bp
 from routes.gastos import gastos_bp
 from routes.categorias import categorias_bp
 from routes.analisis import analisis_bp
+import os
 
 app = Flask(__name__)
-CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=False)
+
+CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
 
 app.register_blueprint(auth_bp, url_prefix="/api")
 app.register_blueprint(gastos_bp, url_prefix="/api")
@@ -18,6 +20,5 @@ def health():
     return {"status": "ok", "app": "StatKash"}
 
 if __name__ == "__main__":
-    import os
-    port = int(os.getenv("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=False)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(debug=False, host="0.0.0.0", port=port)
