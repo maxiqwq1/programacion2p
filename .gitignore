@@ -1,0 +1,15 @@
+# entorno virtual de Python
+.venv/
+__pycache__/
+*.pyc
+
+# variables de entorno, no subir nunca esto
+backend/.env
+
+# dependencias del frontend
+frontend/node_modules/
+frontend/dist/
+
+# archivos de sistema
+.DS_Store
+Thumbs.db

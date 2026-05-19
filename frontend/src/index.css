@@ -1,0 +1,37 @@
+/* reseteo básico, sin esto cada navegador pone márgenes distintos y se ve horrible */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* fuente y fondo general de la app */
+body {
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  background: #0d0d0d;
+  color: #f0f0f0;
+}
+
+/* los links se ven amarillos para que combinen con el tema dorado */
+a {
+  color: #f5c518;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* personalicé el scrollbar para que no se vea tan genérico, tardé un rato en esto */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1a1a1a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #f5c518;
+  border-radius: 3px;
+}
