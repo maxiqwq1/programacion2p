@@ -17,6 +17,9 @@ export default function Dashboard() {
   const [gastos, setGastos] = useState([]);
   const [analisis, setAnalisis] = useState(null);
   const [periodo, setPeriodo] = useState("mensual");
+  const [filtroCategoria, setFiltroCategoria] = useState("");
+  const [fechaInicio, setFechaInicio] = useState("");
+  const [fechaFin, setFechaFin] = useState("");
   // esto controla cuál sección del sidebar está activa
   const [activePage, setActivePage] = useState("overview");
   const [toast, setToast] = useState(null);
@@ -31,12 +34,12 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const nombre = localStorage.getItem("nombre");
 
-  // cargo todo cuando cambia el periodo seleccionado
+  // recargo gastos cuando cambia cualquier filtro
   useEffect(() => {
     cargarCategorias();
     cargarGastos();
     cargarAnalisis();
-  }, [periodo]);
+  }, [periodo, filtroCategoria, fechaInicio, fechaFin]);
 
   async function cargarCategorias() {
     const res = await API.get("/categorias");
@@ -44,9 +47,13 @@ export default function Dashboard() {
   }
 
   async function cargarGastos() {
-    // si no hay periodo seleccionado traigo todos los gastos
-    const url = periodo ? `/gastos?periodo=${periodo}` : "/gastos";
-    const res = await API.get(url);
+    // armo los parámetros de filtro dinámicamente
+    const params = new URLSearchParams();
+    if (periodo)        params.append("periodo", periodo);
+    if (filtroCategoria) params.append("categoria_id", filtroCategoria);
+    if (fechaInicio)    params.append("fecha_inicio", fechaInicio);
+    if (fechaFin)       params.append("fecha_fin", fechaFin);
+    const res = await API.get(`/gastos?${params.toString()}`);
     setGastos(res.data);
   }
 
@@ -133,7 +140,7 @@ export default function Dashboard() {
 
       {/* contenido principal a la derecha del sidebar */}
       <main style={s.main}>
-        {/* encabezado con el título de la sección y el filtro de periodo */}
+        {/* encabezado con título y todos los filtros */}
         <div style={s.header}>
           <div>
             <h1 style={s.pageTitle}>
@@ -141,16 +148,55 @@ export default function Dashboard() {
             </h1>
             <p style={s.pageDate}>{new Date().toLocaleDateString("es-CO", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</p>
           </div>
-          <select
-            style={s.periodoSelect}
-            value={periodo}
-            onChange={(e) => setPeriodo(e.target.value)}
-          >
-            <option value="">Todos</option>
-            <option value="diario">Hoy</option>
-            <option value="semanal">Esta semana</option>
-            <option value="mensual">Este mes</option>
-          </select>
+          <div style={s.filtros}>
+            {/* filtro de periodo */}
+            <select style={s.periodoSelect} value={periodo} onChange={(e) => setPeriodo(e.target.value)}>
+              <option value="">Todos</option>
+              <option value="diario">Hoy</option>
+              <option value="semanal">Esta semana</option>
+              <option value="mensual">Este mes</option>
+              <option value="trimestral">Trimestral</option>
+              <option value="semestral">Semestral</option>
+              <option value="anual">Este año</option>
+            </select>
+
+            {/* filtro por categoría */}
+            <select style={s.periodoSelect} value={filtroCategoria} onChange={(e) => { setFiltroCategoria(e.target.value); setFechaInicio(""); setFechaFin(""); }}>
+              <option value="">Todas las categorías</option>
+              {categorias.map((c) => (
+                <option key={c.id} value={c.id}>{c.nombre}</option>
+              ))}
+            </select>
+
+            {/* rango de fechas — solo visible si se seleccionó una categoría */}
+            {filtroCategoria && (
+              <>
+                <input
+                  style={s.periodoSelect}
+                  type="date"
+                  value={fechaInicio}
+                  onChange={(e) => setFechaInicio(e.target.value)}
+                  title="Desde"
+                />
+                <input
+                  style={s.periodoSelect}
+                  type="date"
+                  value={fechaFin}
+                  onChange={(e) => setFechaFin(e.target.value)}
+                  title="Hasta"
+                />
+                {/* botón para limpiar los filtros de fecha */}
+                {(fechaInicio || fechaFin) && (
+                  <button
+                    style={s.clearBtn}
+                    onClick={() => { setFechaInicio(""); setFechaFin(""); }}
+                  >
+                    ✕ Fechas
+                  </button>
+                )}
+              </>
+            )}
+          </div>
         </div>
 
         {/* --- VISTA GENERAL --- muestra todo de un vistazo */}
@@ -393,7 +439,12 @@ const s = {
     background: "transparent", color: "#a06600", cursor: "pointer", fontSize: "0.85rem",
   },
   main: { marginLeft: "240px", flex: 1, padding: "32px 40px" },
-  header: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "28px" },
+  header: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "28px", flexWrap: "wrap", gap: "16px" },
+  filtros: { display: "flex", flexWrap: "wrap", gap: "10px", alignItems: "center" },
+  clearBtn: {
+    padding: "10px 14px", borderRadius: "10px", border: "1px solid #5c1a1a",
+    background: "#2d0f0f", color: "#f87171", cursor: "pointer", fontSize: "0.85rem",
+  },
   pageTitle: { fontSize: "1.6rem", fontWeight: "700", color: "#ffffff", marginBottom: "4px" },
   pageDate: { color: "#444", fontSize: "0.85rem" },
   periodoSelect: {

@@ -19,14 +19,42 @@ def listar_gastos():
     if not user_id:
         return jsonify({"error": "No autorizado."}), 401
 
-    periodo = request.args.get("periodo")
-    where_periodo = ""
+    periodo     = request.args.get("periodo")
+    categoria_id = request.args.get("categoria_id")
+    fecha_inicio = request.args.get("fecha_inicio")
+    fecha_fin    = request.args.get("fecha_fin")
+
+    filtros = []
+    params  = [user_id]
+
+    # filtro por periodo predefinido
     if periodo == "diario":
-        where_periodo = "AND fecha = CURRENT_DATE"
+        filtros.append("AND fecha = CURRENT_DATE")
     elif periodo == "semanal":
-        where_periodo = "AND fecha >= CURRENT_DATE - INTERVAL '7 days'"
+        filtros.append("AND fecha >= CURRENT_DATE - INTERVAL '7 days'")
     elif periodo == "mensual":
-        where_periodo = "AND date_trunc('month', fecha) = date_trunc('month', CURRENT_DATE)"
+        filtros.append("AND date_trunc('month', fecha) = date_trunc('month', CURRENT_DATE)")
+    elif periodo == "trimestral":
+        filtros.append("AND fecha >= CURRENT_DATE - INTERVAL '3 months'")
+    elif periodo == "semestral":
+        filtros.append("AND fecha >= CURRENT_DATE - INTERVAL '6 months'")
+    elif periodo == "anual":
+        filtros.append("AND fecha >= CURRENT_DATE - INTERVAL '1 year'")
+
+    # filtro por categoría
+    if categoria_id:
+        filtros.append("AND g.categoria_id = %s")
+        params.append(int(categoria_id))
+
+    # filtro por rango de fechas manual
+    if fecha_inicio:
+        filtros.append("AND fecha >= %s")
+        params.append(fecha_inicio)
+    if fecha_fin:
+        filtros.append("AND fecha <= %s")
+        params.append(fecha_fin)
+
+    where_extra = " ".join(filtros)
 
     conn = get_connection()
     cur = conn.cursor()
@@ -34,9 +62,9 @@ def listar_gastos():
         SELECT g.id, c.nombre, g.motivo, g.monto, g.fecha
         FROM gastos g
         JOIN categorias c ON c.id = g.categoria_id
-        WHERE g.usuario_id = %s {where_periodo}
+        WHERE g.usuario_id = %s {where_extra}
         ORDER BY g.fecha DESC, g.id DESC;
-    """, (user_id,))
+    """, tuple(params))
     rows = cur.fetchall()
     cur.close()
     conn.close()
