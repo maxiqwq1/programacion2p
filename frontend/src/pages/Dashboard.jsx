@@ -332,24 +332,61 @@ export default function Dashboard() {
                   <h3 style={s.chartTitle}>Por categoría</h3>
                   <ResponsiveContainer width="100%" height={260}>
                     <PieChart>
-                      <Pie data={analisis.por_categoria} dataKey="total" nameKey="categoria" cx="50%" cy="50%" outerRadius={90} label>
+                      <Pie
+                        data={analisis.por_categoria}
+                        dataKey="total" nameKey="categoria"
+                        cx="50%" cy="50%" outerRadius={90} label
+                        style={{ cursor: "pointer" }}
+                        onClick={(data) => {
+                          // busco el id de la categoría seleccionada
+                          const cat = categorias.find(c => c.nombre === data.categoria);
+                          if (cat) {
+                            setFiltroCategoria(String(cat.id));
+                            setPeriodo("");
+                            setFechaInicio("");
+                            setFechaFin("");
+                            aplicarFiltros("", String(cat.id), "", "");
+                            setActivePage("gastos");
+                            setToast({ message: `Filtrando por ${data.categoria}`, type: "success" });
+                          }
+                        }}
+                      >
                         {analisis.por_categoria.map((_, i) => (
                           <Cell key={i} fill={COLORS[i % COLORS.length]} />
                         ))}
                       </Pie>
-                      <Tooltip formatter={(v) => `$${v.toLocaleString("es-CO")}`} contentStyle={{ background: "#1a1a1a", border: "1px solid #2a2200", borderRadius: "8px", color: "#f0f0f0" }} />
+                      <Tooltip formatter={(v) => `$${v.toLocaleString("es-CO")}`} contentStyle={{ background: "#111", border: "1px solid #2a2200", borderRadius: "8px", color: "#f0f0f0" }} />
                       <Legend />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
 
                 <div style={s.chartCard}>
-                  <h3 style={s.chartTitle}>Por mes</h3>
+                  <h3 style={s.chartTitle}>Por mes <span style={{ color: "#444", fontSize: "0.75rem", fontWeight: "400" }}>— clic para filtrar</span></h3>
                   <ResponsiveContainer width="100%" height={260}>
-                    <BarChart data={analisis.por_mes}>
-                      <XAxis dataKey="mes" stroke="#555" tick={{ fill: "#999" }} />
-                      <YAxis stroke="#555" tick={{ fill: "#999" }} />
-                      <Tooltip formatter={(v) => `$${v.toLocaleString("es-CO")}`} contentStyle={{ background: "#1a1a1a", border: "1px solid #2a2200", borderRadius: "8px", color: "#f0f0f0" }} />
+                    <BarChart
+                      data={analisis.por_mes}
+                      style={{ cursor: "pointer" }}
+                      onClick={(data) => {
+                        if (!data?.activePayload?.[0]) return;
+                        const mes = data.activePayload[0].payload.mes; // ej: "2026-05"
+                        const [anio, m] = mes.split("-");
+                        const inicio = `${anio}-${m}-01`;
+                        // último día del mes
+                        const ultimoDia = new Date(Number(anio), Number(m), 0).getDate();
+                        const fin = `${anio}-${m}-${String(ultimoDia).padStart(2, "0")}`;
+                        setPeriodo("");
+                        setFiltroCategoria("");
+                        setFechaInicio(inicio);
+                        setFechaFin(fin);
+                        aplicarFiltros("", "", inicio, fin);
+                        setActivePage("gastos");
+                        setToast({ message: `Mostrando gastos de ${mes}`, type: "success" });
+                      }}
+                    >
+                      <XAxis dataKey="mes" stroke="#333" tick={{ fill: "#555" }} />
+                      <YAxis stroke="#333" tick={{ fill: "#555" }} />
+                      <Tooltip formatter={(v) => `$${v.toLocaleString("es-CO")}`} contentStyle={{ background: "#111", border: "1px solid #2a2200", borderRadius: "8px", color: "#f0f0f0" }} />
                       <Bar dataKey="total" fill="#f5c518" radius={[6, 6, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
