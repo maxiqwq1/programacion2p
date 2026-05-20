@@ -25,7 +25,8 @@ export default function Dashboard() {
   const [sueldo, setSueldo] = useState("");
   const [deudas, setDeudas] = useState([]);
   const [snowball, setSnowball] = useState(null);
-  const [formDeuda, setFormDeuda] = useState({ nombre: "", monto_actual: "", interes_mensual: "", pago_minimo: "" });
+  const [proyeccion, setProyeccion] = useState(null);
+  const [formDeuda, setFormDeuda] = useState({ nombre: "", monto_actual: "", interes_mensual: "", pago_minimo: "", fecha_inicio: new Date().toISOString().split("T")[0] });
   // esto controla cuál sección del sidebar está activa
   const [activePage, setActivePage] = useState("overview");
   const [toast, setToast] = useState(null);
@@ -79,9 +80,14 @@ export default function Dashboard() {
 
   async function cargarFinanzas() {
     try {
-      const [resF, resS] = await Promise.all([API.get("/finanzas"), API.get("/sueldo")]);
+      const [resF, resS, resP] = await Promise.all([
+        API.get("/finanzas"),
+        API.get("/sueldo"),
+        API.get("/proyeccion"),
+      ]);
       setFinanzas(resF.data);
       setSueldo(resS.data.sueldo || "");
+      setProyeccion(resP.data);
     } catch {}
   }
 
@@ -107,8 +113,9 @@ export default function Dashboard() {
       interes_mensual: Number(formDeuda.interes_mensual),
       pago_minimo: Number(formDeuda.pago_minimo),
     });
-    setFormDeuda({ nombre: "", monto_actual: "", interes_mensual: "", pago_minimo: "" });
+    setFormDeuda({ nombre: "", monto_actual: "", interes_mensual: "", pago_minimo: "", fecha_inicio: new Date().toISOString().split("T")[0] });
     cargarDeudas();
+    cargarFinanzas();
     setToast({ message: "Deuda agregada.", type: "success" });
   }
 
@@ -276,6 +283,31 @@ export default function Dashboard() {
         {/* --- VISTA GENERAL --- muestra todo de un vistazo */}
         {activePage === "overview" && (
           <div>
+            {/* resumen de deudas si hay alguna */}
+            {finanzas && finanzas.num_deudas > 0 && (
+              <div style={{ ...s.finCard, marginBottom: "20px", display: "flex", gap: "24px", alignItems: "center", flexWrap: "wrap" }}>
+                <div>
+                  <p style={s.finLabel}>Deudas activas</p>
+                  <p style={{ color: "#f87171", fontWeight: "700", fontSize: "1.3rem", margin: 0 }}>{finanzas.num_deudas}</p>
+                </div>
+                <div>
+                  <p style={s.finLabel}>Saldo total deudas</p>
+                  <p style={{ color: "#f87171", fontWeight: "700", fontSize: "1.3rem", margin: 0 }}>${finanzas.total_deuda_saldo.toLocaleString("es-CO")}</p>
+                </div>
+                <div>
+                  <p style={s.finLabel}>Pago mensual deudas</p>
+                  <p style={{ color: "#fb923c", fontWeight: "700", fontSize: "1.3rem", margin: 0 }}>${finanzas.total_deuda_mensual.toLocaleString("es-CO")}/mes</p>
+                </div>
+                {proyeccion?.libre_deudas_mes && (
+                  <div>
+                    <p style={s.finLabel}>Libre de deudas estimado</p>
+                    <p style={{ color: "#4ade80", fontWeight: "700", fontSize: "1.1rem", margin: 0 }}>{proyeccion.libre_deudas_mes}</p>
+                  </div>
+                )}
+                <button onClick={() => setActivePage("deudas")} style={{ ...s.applyBtn, marginLeft: "auto" }}>Ver plan de pago →</button>
+              </div>
+            )}
+
             {/* tarjetas con los números más importantes */}
             {analisis && (
               <div style={s.statsGrid}>
@@ -576,6 +608,60 @@ export default function Dashboard() {
 
                 {/* plan de acción */}
                 <PlanDeAccion finanzas={finanzas} />
+
+                {/* proyección 12 meses */}
+                {proyeccion && proyeccion.meses.length > 0 && (
+                  <div style={s.finCard}>
+                    <h3 style={s.finTitle}>📅 Proyección — próximos 12 meses</h3>
+                    {proyeccion.libre_deudas_mes && (
+                      <div style={{ background: "#0f2d1a", border: "1px solid #1a5c2a", borderRadius: "10px", padding: "10px 16px", marginBottom: "16px", color: "#4ade80", fontSize: "0.85rem" }}>
+                        🎉 Según el plan bola de nieve, quedarás libre de deudas en <b>{proyeccion.libre_deudas_mes}</b>
+                      </div>
+                    )}
+                    <ResponsiveContainer width="100%" height={280}>
+                      <BarChart data={proyeccion.meses} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                        <XAxis dataKey="mes" stroke="#555" tick={{ fill: "#888", fontSize: 11 }} />
+                        <YAxis stroke="#555" tick={{ fill: "#888", fontSize: 11 }} />
+                        <Tooltip
+                          formatter={(v, name) => [`$${Number(v).toLocaleString("es-CO")}`, name]}
+                          contentStyle={{ background: "#1a1a1a", border: "1px solid #2a2200", borderRadius: "8px", color: "#f0f0f0" }}
+                        />
+                        <Legend />
+                        <Bar dataKey="gastos" name="Gastos" fill="#f87171" radius={[4,4,0,0]} />
+                        <Bar dataKey="deuda" name="Deudas" fill="#fb923c" radius={[4,4,0,0]} />
+                        <Bar dataKey="ahorro" name="Ahorro" fill="#4ade80" radius={[4,4,0,0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+
+                {/* resumen por años */}
+                {proyeccion && proyeccion.anios.length > 0 && (
+                  <div style={s.finCard}>
+                    <h3 style={s.finTitle}>📊 Proyección por año (próximos 5 años)</h3>
+                    <table style={s.table}>
+                      <thead>
+                        <tr>
+                          {["Año", "Ingresos", "Gastos", "Deudas", "Ahorro neto", "Acumulado"].map(h => (
+                            <th key={h} style={s.th}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {proyeccion.anios.map((a, i) => (
+                          <tr key={i} style={s.tr}>
+                            <td style={{ ...s.td, fontWeight: "700", color: "#f5c518" }}>{a.anio}</td>
+                            <td style={s.td}>${a.ingreso.toLocaleString("es-CO")}</td>
+                            <td style={{ ...s.td, color: "#f87171" }}>${a.gastos.toLocaleString("es-CO")}</td>
+                            <td style={{ ...s.td, color: "#fb923c" }}>${a.deuda.toLocaleString("es-CO")}</td>
+                            <td style={{ ...s.td, color: a.ahorro >= 0 ? "#4ade80" : "#f87171", fontWeight: "600" }}>${a.ahorro.toLocaleString("es-CO")}</td>
+                            <td style={{ ...s.td, color: a.acumulado_fin >= 0 ? "#a78bfa" : "#f87171", fontWeight: "600" }}>${a.acumulado_fin.toLocaleString("es-CO")}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </>
             )}
 
@@ -593,12 +679,18 @@ export default function Dashboard() {
             {/* formulario para agregar deuda */}
             <div style={s.finCard}>
               <h3 style={s.finTitle}>➕ Agregar deuda</h3>
-              <form onSubmit={agregarDeuda} style={s.deudaForm}>
-                <input style={s.ticketInput} placeholder="Nombre (ej: Tarjeta Visa)" value={formDeuda.nombre} onChange={(e) => setFormDeuda({ ...formDeuda, nombre: e.target.value })} required />
-                <input style={s.ticketInput} type="number" min="0" placeholder="Saldo actual ($)" value={formDeuda.monto_actual} onChange={(e) => setFormDeuda({ ...formDeuda, monto_actual: e.target.value })} required />
-                <input style={s.ticketInput} type="number" min="0" step="0.1" placeholder="Interés mensual (%)" value={formDeuda.interes_mensual} onChange={(e) => setFormDeuda({ ...formDeuda, interes_mensual: e.target.value })} />
-                <input style={s.ticketInput} type="number" min="0" placeholder="Pago mínimo mensual ($)" value={formDeuda.pago_minimo} onChange={(e) => setFormDeuda({ ...formDeuda, pago_minimo: e.target.value })} required />
-                <button style={s.applyBtn} type="submit">Agregar</button>
+              <form onSubmit={agregarDeuda} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr", gap: "10px", alignItems: "center" }}>
+                  <input style={s.ticketInput} placeholder="Nombre (ej: Tarjeta Visa)" value={formDeuda.nombre} onChange={(e) => setFormDeuda({ ...formDeuda, nombre: e.target.value })} required />
+                  <input style={s.ticketInput} type="number" min="0" placeholder="Saldo actual ($)" value={formDeuda.monto_actual} onChange={(e) => setFormDeuda({ ...formDeuda, monto_actual: e.target.value })} required />
+                  <input style={s.ticketInput} type="number" min="0" step="0.1" placeholder="Interés mensual (%)" value={formDeuda.interes_mensual} onChange={(e) => setFormDeuda({ ...formDeuda, interes_mensual: e.target.value })} />
+                  <input style={s.ticketInput} type="number" min="0" placeholder="Pago mínimo ($)" value={formDeuda.pago_minimo} onChange={(e) => setFormDeuda({ ...formDeuda, pago_minimo: e.target.value })} required />
+                  <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                    <span style={{ color: "#555", fontSize: "0.75rem" }}>Fecha inicio</span>
+                    <input style={s.ticketInput} type="date" value={formDeuda.fecha_inicio} onChange={(e) => setFormDeuda({ ...formDeuda, fecha_inicio: e.target.value })} />
+                  </div>
+                </div>
+                <button style={{ ...s.applyBtn, alignSelf: "flex-start" }} type="submit">Agregar deuda</button>
               </form>
             </div>
 
@@ -612,7 +704,7 @@ export default function Dashboard() {
                 <table style={s.table}>
                   <thead>
                     <tr>
-                      {["Deuda", "Saldo", "Interés mensual", "Pago mínimo", ""].map((h) => <th key={h} style={s.th}>{h}</th>)}
+                      {["Deuda", "Saldo", "Interés mensual", "Pago mínimo", "Desde", ""].map((h) => <th key={h} style={s.th}>{h}</th>)}
                     </tr>
                   </thead>
                   <tbody>
@@ -622,6 +714,7 @@ export default function Dashboard() {
                         <td style={{ ...s.td, color: "#f87171", fontWeight: "600" }}>${d.monto_actual.toLocaleString("es-CO")}</td>
                         <td style={s.td}>{d.interes_mensual}%</td>
                         <td style={{ ...s.td, color: "#f5c518" }}>${d.pago_minimo.toLocaleString("es-CO")}</td>
+                        <td style={{ ...s.td, color: "#666" }}>{d.fecha_inicio || "—"}</td>
                         <td style={s.td}><button onClick={() => eliminarDeuda(d.id)} style={s.delBtn}>✕</button></td>
                       </tr>
                     ))}
