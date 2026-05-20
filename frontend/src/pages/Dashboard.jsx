@@ -21,6 +21,11 @@ export default function Dashboard() {
   const [filtroCategoria, setFiltroCategoria] = useState("");
   const [fechaInicio, setFechaInicio] = useState("");
   const [fechaFin, setFechaFin] = useState("");
+  const [finanzas, setFinanzas] = useState(null);
+  const [sueldo, setSueldo] = useState("");
+  const [deudas, setDeudas] = useState([]);
+  const [snowball, setSnowball] = useState(null);
+  const [formDeuda, setFormDeuda] = useState({ nombre: "", monto_actual: "", interes_mensual: "", pago_minimo: "" });
   // esto controla cuál sección del sidebar está activa
   const [activePage, setActivePage] = useState("overview");
   const [toast, setToast] = useState(null);
@@ -35,11 +40,12 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const nombre = localStorage.getItem("nombre");
 
-  // solo cargo al montar la página, los filtros se aplican con el botón
   useEffect(() => {
     cargarCategorias();
     aplicarFiltros();
     cargarAnalisis();
+    cargarFinanzas();
+    cargarDeudas();
   }, []);
 
   async function cargarCategorias() {
@@ -69,6 +75,53 @@ export default function Dashboard() {
   async function cargarGastos() {
     const res = await API.get("/gastos");
     setGastos(res.data);
+  }
+
+  async function cargarFinanzas() {
+    try {
+      const [resF, resS] = await Promise.all([API.get("/finanzas"), API.get("/sueldo")]);
+      setFinanzas(resF.data);
+      setSueldo(resS.data.sueldo || "");
+    } catch {}
+  }
+
+  async function cargarDeudas() {
+    try {
+      const res = await API.get("/deudas");
+      setDeudas(res.data);
+    } catch {}
+  }
+
+  async function guardarSueldo(e) {
+    e.preventDefault();
+    await API.put("/sueldo", { sueldo: Number(sueldo) });
+    cargarFinanzas();
+    setToast({ message: "Sueldo actualizado correctamente.", type: "success" });
+  }
+
+  async function agregarDeuda(e) {
+    e.preventDefault();
+    await API.post("/deudas", {
+      ...formDeuda,
+      monto_actual: Number(formDeuda.monto_actual),
+      interes_mensual: Number(formDeuda.interes_mensual),
+      pago_minimo: Number(formDeuda.pago_minimo),
+    });
+    setFormDeuda({ nombre: "", monto_actual: "", interes_mensual: "", pago_minimo: "" });
+    cargarDeudas();
+    setToast({ message: "Deuda agregada.", type: "success" });
+  }
+
+  async function eliminarDeuda(id) {
+    await API.delete(`/deudas/${id}`);
+    cargarDeudas();
+    setSnowball(null);
+    setToast({ message: "Deuda eliminada.", type: "error" });
+  }
+
+  async function calcularSnowball() {
+    const res = await API.get("/snowball");
+    setSnowball(res.data);
   }
 
   async function cargarAnalisis() {
@@ -107,6 +160,8 @@ export default function Dashboard() {
     { id: "overview", icon: "⬡", label: "Vista General" },
     { id: "gastos", icon: "↕", label: "Transacciones" },
     { id: "nuevo", icon: "+", label: "Nuevo Gasto" },
+    { id: "finanzas", icon: "◈", label: "Mis Finanzas" },
+    { id: "deudas", icon: "◎", label: "Deudas" },
   ];
 
   return (
@@ -441,9 +496,200 @@ export default function Dashboard() {
           </div>
         )}
 
+        {/* --- MIS FINANZAS --- salud financiera */}
+        {activePage === "finanzas" && (
+          <div>
+            {/* sueldo */}
+            <div style={s.finCard}>
+              <h3 style={s.finTitle}>💰 Mi sueldo mensual</h3>
+              <form onSubmit={guardarSueldo} style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+                <input
+                  style={{ ...s.ticketInput, maxWidth: "260px" }}
+                  type="number" min="0" placeholder="Ingresa tu sueldo"
+                  value={sueldo}
+                  onChange={(e) => setSueldo(e.target.value)}
+                  required
+                />
+                <button style={s.applyBtn} type="submit">Guardar</button>
+              </form>
+            </div>
+
+            {/* estadísticas */}
+            {finanzas && finanzas.sueldo > 0 && (
+              <>
+                {/* semáforo */}
+                <div style={{ ...s.finCard, borderColor: saludColor(finanzas.salud) }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div>
+                      <p style={s.finLabel}>Salud financiera este mes</p>
+                      <p style={{ ...s.finValor, color: saludColor(finanzas.salud), fontSize: "1.3rem" }}>
+                        {saludTexto(finanzas.salud)}
+                      </p>
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      <p style={s.finLabel}>Tasa de ahorro</p>
+                      <p style={{ ...s.finValor, color: saludColor(finanzas.salud) }}>{finanzas.tasa_ahorro}%</p>
+                    </div>
+                  </div>
+                  <div style={s.progressBar}>
+                    <div style={{ ...s.progressFill, width: `${Math.min(finanzas.porcentaje_gastado, 100)}%`, background: saludColor(finanzas.salud) }} />
+                  </div>
+                  <p style={{ color: "#555", fontSize: "0.8rem", marginTop: "6px" }}>
+                    Has gastado el {finanzas.porcentaje_gastado}% de tu sueldo este mes
+                  </p>
+                </div>
+
+                {/* cards */}
+                <div style={s.finGrid}>
+                  {[
+                    { label: "Sueldo mensual", valor: finanzas.sueldo, color: "#f5c518" },
+                    { label: "Gastos este mes", valor: finanzas.gastos_mes, color: "#f87171" },
+                    { label: "Ahorro este mes", valor: finanzas.ahorro, color: finanzas.ahorro >= 0 ? "#4ade80" : "#f87171" },
+                    { label: "Promedio mensual gasto", valor: finanzas.promedio_mensual, color: "#a78bfa" },
+                  ].map((item) => (
+                    <div key={item.label} style={s.finStatCard}>
+                      <p style={s.finLabel}>{item.label}</p>
+                      <p style={{ ...s.finValor, color: item.color }}>${item.valor.toLocaleString("es-CO")}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* distribución por categoría */}
+                {finanzas.por_categoria.length > 0 && (
+                  <div style={s.finCard}>
+                    <h3 style={s.finTitle}>Distribución del gasto este mes</h3>
+                    {finanzas.por_categoria.map((item, i) => (
+                      <div key={i} style={{ marginBottom: "12px" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+                          <span style={{ color: "#ccc", fontSize: "0.9rem" }}>{item.categoria}</span>
+                          <span style={{ color: "#f5c518", fontSize: "0.9rem", fontWeight: "600" }}>
+                            ${item.total.toLocaleString("es-CO")} ({finanzas.sueldo > 0 ? (item.total / finanzas.sueldo * 100).toFixed(1) : 0}% del sueldo)
+                          </span>
+                        </div>
+                        <div style={s.progressBar}>
+                          <div style={{ ...s.progressFill, width: `${Math.min(item.total / finanzas.sueldo * 100, 100)}%` }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+
+            {finanzas && finanzas.sueldo === 0 && (
+              <div style={{ ...s.finCard, textAlign: "center", color: "#555" }}>
+                Ingresa tu sueldo para ver tu análisis financiero
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* --- DEUDAS --- método bola de nieve */}
+        {activePage === "deudas" && (
+          <div>
+            {/* formulario para agregar deuda */}
+            <div style={s.finCard}>
+              <h3 style={s.finTitle}>➕ Agregar deuda</h3>
+              <form onSubmit={agregarDeuda} style={s.deudaForm}>
+                <input style={s.ticketInput} placeholder="Nombre (ej: Tarjeta Visa)" value={formDeuda.nombre} onChange={(e) => setFormDeuda({ ...formDeuda, nombre: e.target.value })} required />
+                <input style={s.ticketInput} type="number" min="0" placeholder="Saldo actual ($)" value={formDeuda.monto_actual} onChange={(e) => setFormDeuda({ ...formDeuda, monto_actual: e.target.value })} required />
+                <input style={s.ticketInput} type="number" min="0" step="0.1" placeholder="Interés mensual (%)" value={formDeuda.interes_mensual} onChange={(e) => setFormDeuda({ ...formDeuda, interes_mensual: e.target.value })} />
+                <input style={s.ticketInput} type="number" min="0" placeholder="Pago mínimo mensual ($)" value={formDeuda.pago_minimo} onChange={(e) => setFormDeuda({ ...formDeuda, pago_minimo: e.target.value })} required />
+                <button style={s.applyBtn} type="submit">Agregar</button>
+              </form>
+            </div>
+
+            {/* lista de deudas */}
+            {deudas.length > 0 && (
+              <div style={s.finCard}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+                  <h3 style={s.finTitle}>Mis deudas</h3>
+                  <button style={s.snowballBtn} onClick={calcularSnowball}>Calcular Bola de Nieve ❄️</button>
+                </div>
+                <table style={s.table}>
+                  <thead>
+                    <tr>
+                      {["Deuda", "Saldo", "Interés mensual", "Pago mínimo", ""].map((h) => <th key={h} style={s.th}>{h}</th>)}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {deudas.map((d) => (
+                      <tr key={d.id} style={s.tr}>
+                        <td style={s.td}><span style={s.badge}>{d.nombre}</span></td>
+                        <td style={{ ...s.td, color: "#f87171", fontWeight: "600" }}>${d.monto_actual.toLocaleString("es-CO")}</td>
+                        <td style={s.td}>{d.interes_mensual}%</td>
+                        <td style={{ ...s.td, color: "#f5c518" }}>${d.pago_minimo.toLocaleString("es-CO")}</td>
+                        <td style={s.td}><button onClick={() => eliminarDeuda(d.id)} style={s.delBtn}>✕</button></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* resultado snowball */}
+            {snowball && (
+              <div style={s.finCard}>
+                <h3 style={s.finTitle}>❄️ Plan Bola de Nieve</h3>
+                <p style={{ color: "#666", fontSize: "0.85rem", marginBottom: "20px" }}>
+                  Paga las deudas de menor a mayor. Al liquidar cada una, su pago se suma a la siguiente — como una bola de nieve que crece.
+                </p>
+
+                {!snowball.viable && (
+                  <div style={{ background: "#2d0f0f", border: "1px solid #5c1a1a", borderRadius: "10px", padding: "12px 16px", marginBottom: "16px", color: "#f87171" }}>
+                    ⚠️ Tu sueldo no cubre los pagos mínimos más tus gastos. Considera reducir gastos o aumentar ingresos.
+                  </div>
+                )}
+
+                <div style={{ color: "#555", fontSize: "0.85rem", marginBottom: "16px" }}>
+                  Dinero extra disponible para snowball: <span style={{ color: "#f5c518", fontWeight: "600" }}>${snowball.dinero_extra.toLocaleString("es-CO")}/mes</span>
+                </div>
+
+                {snowball.deudas.map((d, i) => (
+                  <div key={i} style={s.snowballCard}>
+                    <div style={s.snowballOrden}>{d.orden}</div>
+                    <div style={{ flex: 1 }}>
+                      <p style={{ color: "#f0f0f0", fontWeight: "600", marginBottom: "6px" }}>{d.nombre}</p>
+                      <div style={{ display: "flex", gap: "24px", flexWrap: "wrap" }}>
+                        <span style={{ color: "#888", fontSize: "0.82rem" }}>Saldo: <b style={{ color: "#f87171" }}>${d.monto_original.toLocaleString("es-CO")}</b></span>
+                        <span style={{ color: "#888", fontSize: "0.82rem" }}>Pago/mes: <b style={{ color: "#f5c518" }}>${d.pago_mensual.toLocaleString("es-CO")}</b></span>
+                        <span style={{ color: "#888", fontSize: "0.82rem" }}>Meses: <b style={{ color: "#4ade80" }}>{d.meses >= 600 ? "∞" : d.meses}</b></span>
+                        <span style={{ color: "#888", fontSize: "0.82rem" }}>Interés total: <b style={{ color: "#a78bfa" }}>${d.interes_total.toLocaleString("es-CO")}</b></span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                <div style={{ marginTop: "20px", padding: "16px", background: "#1a1a1a", borderRadius: "12px", display: "flex", gap: "32px" }}>
+                  <div>
+                    <p style={s.finLabel}>Tiempo total para liquidar todo</p>
+                    <p style={{ color: "#4ade80", fontWeight: "700", fontSize: "1.2rem" }}>
+                      {snowball.meses_total >= 600 ? "No viable" : `${snowball.meses_total} meses (${(snowball.meses_total / 12).toFixed(1)} años)`}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {deudas.length === 0 && (
+              <div style={{ ...s.finCard, textAlign: "center", color: "#555" }}>
+                No tienes deudas registradas. ¡Excelente!
+              </div>
+            )}
+          </div>
+        )}
+
       </main>
     </div>
   );
+}
+
+function saludColor(salud) {
+  return { excelente: "#4ade80", buena: "#f5c518", ajustada: "#fb923c", deficit: "#f87171" }[salud] || "#666";
+}
+
+function saludTexto(salud) {
+  return { excelente: "Excelente ✓", buena: "Buena", ajustada: "Ajustada ⚠️", deficit: "Déficit ✗" }[salud] || "";
 }
 
 const s = {
@@ -532,4 +778,16 @@ const s = {
   barWrap: { display: "flex", alignItems: "center", gap: "10px" },
   barFill: { height: "6px", background: "#f5c518", borderRadius: "3px", minWidth: "4px", maxWidth: "200px" },
   barLabel: { color: "#666", fontSize: "0.8rem" },
+  finCard: { background: "#111111", border: "1px solid #1f1a00", borderRadius: "14px", padding: "24px", marginBottom: "20px" },
+  finTitle: { color: "#f5c518", fontSize: "1rem", fontWeight: "700", margin: "0 0 16px 0" },
+  finLabel: { color: "#555", fontSize: "0.78rem", textTransform: "uppercase", letterSpacing: "0.5px", margin: "0 0 4px 0" },
+  finValor: { color: "#f0f0f0", fontSize: "1.4rem", fontWeight: "700", margin: 0 },
+  finGrid: { display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "14px", marginBottom: "20px" },
+  finStatCard: { background: "#111111", border: "1px solid #1f1a00", borderRadius: "12px", padding: "18px" },
+  progressBar: { height: "6px", background: "#1a1a1a", borderRadius: "3px", overflow: "hidden" },
+  progressFill: { height: "100%", background: "#f5c518", borderRadius: "3px", transition: "width 0.5s ease" },
+  deudaForm: { display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr auto", gap: "10px", alignItems: "center" },
+  snowballBtn: { padding: "10px 18px", borderRadius: "10px", border: "none", background: "#1f1a00", color: "#f5c518", fontWeight: "700", cursor: "pointer", fontSize: "0.85rem" },
+  snowballCard: { display: "flex", alignItems: "flex-start", gap: "16px", padding: "16px", background: "#1a1a1a", borderRadius: "12px", marginBottom: "10px", border: "1px solid #222" },
+  snowballOrden: { width: "32px", height: "32px", borderRadius: "50%", background: "#f5c518", color: "#0d0d0d", fontWeight: "800", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
 };

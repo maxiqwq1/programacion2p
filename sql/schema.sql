@@ -4,6 +4,18 @@ CREATE TABLE IF NOT EXISTS usuarios (
     nombre VARCHAR(100) NOT NULL,
     email VARCHAR(150) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
+    sueldo NUMERIC(12,2) DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- tabla de deudas para el método bola de nieve
+CREATE TABLE IF NOT EXISTS deudas (
+    id SERIAL PRIMARY KEY,
+    usuario_id INT NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+    nombre VARCHAR(200) NOT NULL,
+    monto_actual NUMERIC(12,2) NOT NULL,
+    interes_mensual NUMERIC(5,2) DEFAULT 0,
+    pago_minimo NUMERIC(12,2) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

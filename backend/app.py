@@ -3,6 +3,7 @@ from routes.auth import auth_bp
 from routes.gastos import gastos_bp
 from routes.categorias import categorias_bp
 from routes.analisis import analisis_bp
+from routes.finanzas import finanzas_bp
 import os
 
 app = Flask(__name__)
@@ -27,6 +28,7 @@ app.register_blueprint(auth_bp, url_prefix="/api")
 app.register_blueprint(gastos_bp, url_prefix="/api")
 app.register_blueprint(categorias_bp, url_prefix="/api")
 app.register_blueprint(analisis_bp, url_prefix="/api")
+app.register_blueprint(finanzas_bp, url_prefix="/api")
 
 @app.route("/api/health", methods=["GET"])
 def health():
