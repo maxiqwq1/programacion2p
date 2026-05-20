@@ -93,7 +93,6 @@ export default function Dashboard() {
     { id: "overview", icon: "⬡", label: "Vista General" },
     { id: "gastos", icon: "↕", label: "Transacciones" },
     { id: "nuevo", icon: "+", label: "Nuevo Gasto" },
-    { id: "graficas", icon: "◑", label: "Gráficas" },
   ];
 
   return (
@@ -280,6 +279,34 @@ export default function Dashboard() {
                 </tbody>
               </table>
             </div>
+
+            {/* resumen por categoría con barras de progreso */}
+            {analisis && analisis.por_categoria.length > 0 && (
+              <div style={s.tableCard}>
+                <h3 style={s.chartTitle}>Resumen por categoría</h3>
+                <table style={s.table}>
+                  <thead>
+                    <tr>
+                      {["Categoría", "Total", "% del gasto"].map((h) => <th key={h} style={s.th}>{h}</th>)}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {analisis.por_categoria.map((item, i) => (
+                      <tr key={i} style={s.tr}>
+                        <td style={s.td}><span style={s.badge}>{item.categoria}</span></td>
+                        <td style={{ ...s.td, color: "#f5c518", fontWeight: "600" }}>${item.total.toLocaleString("es-CO")}</td>
+                        <td style={s.td}>
+                          <div style={s.barWrap}>
+                            <div style={{ ...s.barFill, width: `${(item.total / analisis.total * 100).toFixed(0)}%` }} />
+                            <span style={s.barLabel}>{(item.total / analisis.total * 100).toFixed(1)}%</span>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
 
@@ -345,63 +372,6 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* --- GRÁFICAS --- análisis visual más detallado */}
-        {activePage === "graficas" && analisis && (
-          <div>
-            <div style={s.chartsRow}>
-              <div style={s.chartCard}>
-                <h3 style={s.chartTitle}>Distribución por categoría</h3>
-                <ResponsiveContainer width="100%" height={320}>
-                  <PieChart>
-                    {/* el label muestra el nombre y el porcentaje directamente en la gráfica */}
-                    <Pie data={analisis.por_categoria} dataKey="total" nameKey="categoria" cx="50%" cy="50%" outerRadius={120} label={({ categoria, percent }) => `${categoria} ${(percent * 100).toFixed(0)}%`}>
-                      {analisis.por_categoria.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                    </Pie>
-                    <Tooltip formatter={(v) => `$${v.toLocaleString("es-CO")}`} contentStyle={{ background: "#1a1a1a", border: "1px solid #2a2200", borderRadius: "8px", color: "#f0f0f0" }} />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-              <div style={s.chartCard}>
-                <h3 style={s.chartTitle}>Evolución mensual</h3>
-                <ResponsiveContainer width="100%" height={320}>
-                  <BarChart data={analisis.por_mes}>
-                    <XAxis dataKey="mes" stroke="#555" tick={{ fill: "#999" }} />
-                    <YAxis stroke="#555" tick={{ fill: "#999" }} />
-                    <Tooltip formatter={(v) => `$${v.toLocaleString("es-CO")}`} contentStyle={{ background: "#1a1a1a", border: "1px solid #2a2200", borderRadius: "8px", color: "#f0f0f0" }} />
-                    <Bar dataKey="total" fill="#f5c518" radius={[6, 6, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-            {/* tabla de resumen con barra de progreso visual para cada categoría */}
-            <div style={s.tableCard}>
-              <h3 style={s.chartTitle}>Resumen por categoría</h3>
-              <table style={s.table}>
-                <thead>
-                  <tr>
-                    {["Categoría", "Total", "% del gasto"].map((h) => <th key={h} style={s.th}>{h}</th>)}
-                  </tr>
-                </thead>
-                <tbody>
-                  {analisis.por_categoria.map((item, i) => (
-                    <tr key={i} style={s.tr}>
-                      <td style={s.td}><span style={s.badge}>{item.categoria}</span></td>
-                      <td style={{ ...s.td, color: "#f5c518", fontWeight: "600" }}>${item.total.toLocaleString("es-CO")}</td>
-                      <td style={s.td}>
-                        {/* esta mini barra la hice con un div, no encontré otra forma más simple */}
-                        <div style={s.barWrap}>
-                          <div style={{ ...s.barFill, width: `${(item.total / analisis.total * 100).toFixed(0)}%` }} />
-                          <span style={s.barLabel}>{(item.total / analisis.total * 100).toFixed(1)}%</span>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
       </main>
     </div>
   );
