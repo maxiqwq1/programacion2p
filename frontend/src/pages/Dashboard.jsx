@@ -34,26 +34,33 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const nombre = localStorage.getItem("nombre");
 
-  // recargo gastos cuando cambia cualquier filtro
+  // solo cargo al montar la página, los filtros se aplican con el botón
   useEffect(() => {
     cargarCategorias();
-    cargarGastos();
+    aplicarFiltros();
     cargarAnalisis();
-  }, [periodo, filtroCategoria, fechaInicio, fechaFin]);
+  }, []);
 
   async function cargarCategorias() {
     const res = await API.get("/categorias");
     setCategorias(res.data);
   }
 
-  async function cargarGastos() {
-    // armo los parámetros de filtro dinámicamente
+  // esta función arma la URL con todos los filtros activos y pide los datos
+  async function aplicarFiltros() {
     const params = new URLSearchParams();
-    if (periodo)        params.append("periodo", periodo);
+    if (periodo)         params.append("periodo", periodo);
     if (filtroCategoria) params.append("categoria_id", filtroCategoria);
-    if (fechaInicio)    params.append("fecha_inicio", fechaInicio);
-    if (fechaFin)       params.append("fecha_fin", fechaFin);
+    if (fechaInicio)     params.append("fecha_inicio", fechaInicio);
+    if (fechaFin)        params.append("fecha_fin", fechaFin);
     const res = await API.get(`/gastos?${params.toString()}`);
+    setGastos(res.data);
+    cargarAnalisis();
+    setToast({ message: "Filtros aplicados.", type: "success" });
+  }
+
+  async function cargarGastos() {
+    const res = await API.get("/gastos");
     setGastos(res.data);
   }
 
@@ -195,6 +202,11 @@ export default function Dashboard() {
                 )}
               </>
             )}
+
+            {/* botón principal para aplicar todos los filtros */}
+            <button style={s.applyBtn} onClick={aplicarFiltros}>
+              Aplicar
+            </button>
           </div>
         </div>
 
@@ -414,6 +426,11 @@ const s = {
   clearBtn: {
     padding: "10px 14px", borderRadius: "10px", border: "1px solid #5c1a1a",
     background: "#2d0f0f", color: "#f87171", cursor: "pointer", fontSize: "0.85rem",
+  },
+  applyBtn: {
+    padding: "10px 20px", borderRadius: "10px", border: "none",
+    background: "#f5c518", color: "#0d0d0d", fontWeight: "700",
+    fontSize: "0.9rem", cursor: "pointer",
   },
   pageTitle: { fontSize: "1.6rem", fontWeight: "700", color: "#ffffff", marginBottom: "4px" },
   pageDate: { color: "#444", fontSize: "0.85rem" },
