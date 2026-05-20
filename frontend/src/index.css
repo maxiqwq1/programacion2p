@@ -7,9 +7,11 @@
 
 /* fuente y fondo general de la app */
 body {
-  font-family: 'Segoe UI', system-ui, sans-serif;
-  background: #0d0d0d;
-  color: #f0f0f0;
+  font-family: -apple-system, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
+  background: #080808;
+  color: #e0e0e0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* los links se ven amarillos para que combinen con el tema dorado */
