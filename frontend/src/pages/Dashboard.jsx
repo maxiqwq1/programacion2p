@@ -46,13 +46,19 @@ export default function Dashboard() {
     setCategorias(res.data);
   }
 
-  // esta función arma la URL con todos los filtros activos y pide los datos
-  async function aplicarFiltros() {
+  async function aplicarFiltros(p, cat, fi, ff) {
+    // recibo los valores como parámetros para evitar problemas de closure stale
+    const _periodo  = p   !== undefined ? p   : periodo;
+    const _cat      = cat !== undefined ? cat : filtroCategoria;
+    const _fi       = fi  !== undefined ? fi  : fechaInicio;
+    const _ff       = ff  !== undefined ? ff  : fechaFin;
+
     const params = new URLSearchParams();
-    if (periodo)         params.append("periodo", periodo);
-    if (filtroCategoria) params.append("categoria_id", filtroCategoria);
-    if (fechaInicio)     params.append("fecha_inicio", fechaInicio);
-    if (fechaFin)        params.append("fecha_fin", fechaFin);
+    if (_periodo) params.append("periodo", _periodo);
+    if (_cat)     params.append("categoria_id", _cat);
+    if (_fi)      params.append("fecha_inicio", _fi);
+    if (_ff)      params.append("fecha_fin", _ff);
+
     const res = await API.get(`/gastos?${params.toString()}`);
     setGastos(res.data);
     cargarAnalisis();
@@ -353,34 +359,50 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* --- NUEVO GASTO --- formulario para agregar un gasto */}
+        {/* --- NUEVO GASTO --- formulario mejorado */}
         {activePage === "nuevo" && (
-          <div style={s.formCard}>
-            <form onSubmit={handleSubmit} style={s.form}>
-              <div style={s.formGroup}>
-                <label style={s.label}>Categoría</label>
-                <select style={s.input} value={form.categoria_id} onChange={(e) => setForm({ ...form, categoria_id: e.target.value })} required>
-                  <option value="">Selecciona una categoría</option>
-                  {categorias.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-                </select>
+          <div style={s.nuevoWrap}>
+            <div style={s.nuevoLeft}>
+              <h2 style={s.nuevoTitle}>Registra un gasto</h2>
+              <p style={s.nuevoSubtitle}>Llena los campos y guarda el gasto en tu historial.</p>
+              <div style={s.nuevoHint}>
+                <div style={s.hintItem}>💡 Sé específico en el motivo para análisis más precisos</div>
+                <div style={s.hintItem}>📅 La fecha se rellena con hoy por defecto</div>
+                <div style={s.hintItem}>📊 El gasto aparecerá en tus gráficas de inmediato</div>
               </div>
-              <div style={s.formGroup}>
-                <label style={s.label}>Motivo</label>
-                <input style={s.input} type="text" placeholder="¿En qué gastaste?" value={form.motivo} onChange={(e) => setForm({ ...form, motivo: e.target.value })} required />
-              </div>
-              {/* puse monto y fecha en la misma fila para aprovechar el espacio */}
-              <div style={s.formRow}>
-                <div style={{ ...s.formGroup, flex: 1 }}>
-                  <label style={s.label}>Monto</label>
-                  <input style={s.input} type="number" placeholder="0" value={form.monto} onChange={(e) => setForm({ ...form, monto: e.target.value })} required />
+            </div>
+
+            <div style={s.nuevoRight}>
+              <form onSubmit={handleSubmit} style={s.form}>
+                <div style={s.formGroup}>
+                  <label style={s.labelBig}>Categoría</label>
+                  <select style={s.inputBig} value={form.categoria_id} onChange={(e) => setForm({ ...form, categoria_id: e.target.value })} required>
+                    <option value="">Selecciona una categoría</option>
+                    {categorias.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+                  </select>
                 </div>
-                <div style={{ ...s.formGroup, flex: 1 }}>
-                  <label style={s.label}>Fecha</label>
-                  <input style={s.input} type="date" value={form.fecha} onChange={(e) => setForm({ ...form, fecha: e.target.value })} required />
+
+                <div style={s.formGroup}>
+                  <label style={s.labelBig}>Motivo</label>
+                  <input style={s.inputBig} type="text" placeholder="Ej: Mercado, Netflix, Gasolina..." value={form.motivo} onChange={(e) => setForm({ ...form, motivo: e.target.value })} required />
                 </div>
-              </div>
-              <button style={s.submitBtn} type="submit">Guardar gasto</button>
-            </form>
+
+                <div style={s.formRow}>
+                  <div style={{ ...s.formGroup, flex: 1 }}>
+                    <label style={s.labelBig}>Monto ($)</label>
+                    <input style={s.inputBig} type="number" min="0" placeholder="0" value={form.monto} onChange={(e) => setForm({ ...form, monto: e.target.value })} required />
+                  </div>
+                  <div style={{ ...s.formGroup, flex: 1 }}>
+                    <label style={s.labelBig}>Fecha</label>
+                    <input style={s.inputBig} type="date" value={form.fecha} onChange={(e) => setForm({ ...form, fecha: e.target.value })} required />
+                  </div>
+                </div>
+
+                <button style={s.submitBtnBig} type="submit">
+                  Guardar gasto
+                </button>
+              </form>
+            </div>
           </div>
         )}
 
@@ -459,6 +481,16 @@ const s = {
   label: { color: "#666", fontSize: "0.85rem" },
   input: { padding: "13px 16px", borderRadius: "10px", border: "1px solid #2a2a2a", background: "#1a1a1a", color: "#f0f0f0", fontSize: "0.95rem", outline: "none" },
   submitBtn: { padding: "14px", borderRadius: "10px", border: "none", background: "#f5c518", color: "#0d0d0d", fontWeight: "700", fontSize: "1rem", cursor: "pointer", marginTop: "8px" },
+  nuevoWrap: { display: "grid", gridTemplateColumns: "1fr 1.4fr", gap: "32px", alignItems: "start" },
+  nuevoLeft: { background: "#111111", border: "1px solid #1f1a00", borderRadius: "14px", padding: "32px", display: "flex", flexDirection: "column", gap: "24px" },
+  nuevoTitle: { color: "#f5c518", fontSize: "1.4rem", fontWeight: "700", margin: 0 },
+  nuevoSubtitle: { color: "#555", fontSize: "0.9rem", margin: 0, lineHeight: "1.6" },
+  nuevoHint: { display: "flex", flexDirection: "column", gap: "12px" },
+  hintItem: { color: "#666", fontSize: "0.85rem", lineHeight: "1.5", padding: "10px 14px", background: "#1a1a1a", borderRadius: "10px", border: "1px solid #1f1f1f" },
+  nuevoRight: { background: "#111111", border: "1px solid #1f1a00", borderRadius: "14px", padding: "32px" },
+  labelBig: { color: "#888", fontSize: "0.85rem", fontWeight: "600", letterSpacing: "0.3px" },
+  inputBig: { padding: "14px 16px", borderRadius: "10px", border: "1px solid #2a2a2a", background: "#1a1a1a", color: "#f0f0f0", fontSize: "1rem", outline: "none", width: "100%", boxSizing: "border-box" },
+  submitBtnBig: { padding: "16px", borderRadius: "12px", border: "none", background: "#f5c518", color: "#0d0d0d", fontWeight: "800", fontSize: "1.05rem", cursor: "pointer", marginTop: "8px", letterSpacing: "0.3px" },
   barWrap: { display: "flex", alignItems: "center", gap: "10px" },
   barFill: { height: "6px", background: "#f5c518", borderRadius: "3px", minWidth: "4px", maxWidth: "200px" },
   barLabel: { color: "#666", fontSize: "0.8rem" },
