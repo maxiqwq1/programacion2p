@@ -366,6 +366,8 @@ export default function Dashboard() {
                   <ResponsiveContainer width="100%" height={260}>
                     <BarChart
                       data={analisis.por_mes}
+                      barSize={48}
+                      barCategoryGap="40%"
                       style={{ cursor: "pointer" }}
                       onClick={(data) => {
                         if (!data?.activePayload?.[0]) return;
