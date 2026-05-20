@@ -40,6 +40,32 @@ def register():
     conn.close()
     return jsonify({"message": "Usuario creado correctamente.", "id": user_id}), 201
 
+@auth_bp.route("/reset-password", methods=["POST"])
+def reset_password():
+    data = request.get_json()
+    email = data.get("email")
+    nueva_password = data.get("nueva_password")
+
+    if not all([email, nueva_password]):
+        return jsonify({"error": "Email y nueva contraseña son obligatorios."}), 400
+
+    conn = get_connection()
+    cur = conn.cursor()
+
+    # verifico que el email exista antes de actualizar
+    cur.execute("SELECT id FROM usuarios WHERE email = %s;", (email,))
+    if not cur.fetchone():
+        cur.close()
+        conn.close()
+        return jsonify({"error": "No existe una cuenta con ese email."}), 404
+
+    nuevo_hash = bcrypt.hashpw(nueva_password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+    cur.execute("UPDATE usuarios SET password_hash = %s WHERE email = %s;", (nuevo_hash, email))
+    conn.commit()
+    cur.close()
+    conn.close()
+    return jsonify({"message": "Contraseña actualizada correctamente."}), 200
+
 @auth_bp.route("/login", methods=["POST"])
 def login():
     data = request.get_json()
