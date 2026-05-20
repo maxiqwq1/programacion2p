@@ -161,7 +161,8 @@ export default function Dashboard() {
             </h1>
             <p style={s.pageDate}>{new Date().toLocaleDateString("es-CO", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</p>
           </div>
-          <div style={s.filtros}>
+          {/* los filtros no aplican en nuevo gasto */}
+          <div style={{ ...s.filtros, visibility: activePage === "nuevo" ? "hidden" : "visible" }}>
             {/* filtro de periodo */}
             <select style={s.periodoSelect} value={periodo} onChange={(e) => setPeriodo(e.target.value)}>
               <option value="">Todos</option>
@@ -360,50 +361,83 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* --- NUEVO GASTO --- formulario mejorado */}
+        {/* --- NUEVO GASTO --- diseño tipo recibo */}
         {activePage === "nuevo" && (
-          <div style={s.nuevoWrap}>
-            <div style={s.nuevoLeft}>
-              <h2 style={s.nuevoTitle}>Registra un gasto</h2>
-              <p style={s.nuevoSubtitle}>Llena los campos y guarda el gasto en tu historial.</p>
-              <div style={s.nuevoHint}>
-                <div style={s.hintItem}>💡 Sé específico en el motivo para análisis más precisos</div>
-                <div style={s.hintItem}>📅 La fecha se rellena con hoy por defecto</div>
-                <div style={s.hintItem}>📊 El gasto aparecerá en tus gráficas de inmediato</div>
+          <div style={s.ticketWrap}>
+            <form onSubmit={handleSubmit} style={s.ticket}>
+
+              {/* encabezado del recibo */}
+              <div style={s.ticketHeader}>
+                <span style={s.ticketIcon}>＄</span>
+                <div>
+                  <p style={s.ticketLabel}>¿Cuánto gastaste?</p>
+                  <input
+                    style={s.montoGrande}
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    value={form.monto}
+                    onChange={(e) => setForm({ ...form, monto: e.target.value })}
+                    required
+                  />
+                </div>
               </div>
-            </div>
 
-            <div style={s.nuevoRight}>
-              <form onSubmit={handleSubmit} style={s.form}>
-                <div style={s.formGroup}>
-                  <label style={s.labelBig}>Categoría</label>
-                  <select style={s.inputBig} value={form.categoria_id} onChange={(e) => setForm({ ...form, categoria_id: e.target.value })} required>
-                    <option value="">Selecciona una categoría</option>
-                    {categorias.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-                  </select>
+              <div style={s.ticketDivider} />
+
+              {/* selección de categoría como chips */}
+              <div style={s.formGroup}>
+                <label style={s.ticketFieldLabel}>Categoría</label>
+                <div style={s.chipsWrap}>
+                  {categorias.map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => setForm({ ...form, categoria_id: String(c.id) })}
+                      style={{
+                        ...s.chip,
+                        ...(form.categoria_id === String(c.id) ? s.chipActive : {}),
+                      }}
+                    >
+                      {c.nombre}
+                    </button>
+                  ))}
                 </div>
+              </div>
 
-                <div style={s.formGroup}>
-                  <label style={s.labelBig}>Motivo</label>
-                  <input style={s.inputBig} type="text" placeholder="Ej: Mercado, Netflix, Gasolina..." value={form.motivo} onChange={(e) => setForm({ ...form, motivo: e.target.value })} required />
-                </div>
+              <div style={s.ticketDivider} />
 
-                <div style={s.formRow}>
-                  <div style={{ ...s.formGroup, flex: 1 }}>
-                    <label style={s.labelBig}>Monto ($)</label>
-                    <input style={s.inputBig} type="number" min="0" placeholder="0" value={form.monto} onChange={(e) => setForm({ ...form, monto: e.target.value })} required />
-                  </div>
-                  <div style={{ ...s.formGroup, flex: 1 }}>
-                    <label style={s.labelBig}>Fecha</label>
-                    <input style={s.inputBig} type="date" value={form.fecha} onChange={(e) => setForm({ ...form, fecha: e.target.value })} required />
-                  </div>
-                </div>
+              {/* motivo */}
+              <div style={s.formGroup}>
+                <label style={s.ticketFieldLabel}>¿En qué gastaste?</label>
+                <input
+                  style={s.ticketInput}
+                  type="text"
+                  placeholder="Ej: Mercado, Netflix, Gasolina..."
+                  value={form.motivo}
+                  onChange={(e) => setForm({ ...form, motivo: e.target.value })}
+                  required
+                />
+              </div>
 
-                <button style={s.submitBtnBig} type="submit">
-                  Guardar gasto
-                </button>
-              </form>
-            </div>
+              {/* fecha */}
+              <div style={s.formGroup}>
+                <label style={s.ticketFieldLabel}>Fecha</label>
+                <input
+                  style={s.ticketInput}
+                  type="date"
+                  value={form.fecha}
+                  onChange={(e) => setForm({ ...form, fecha: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div style={s.ticketDivider} />
+
+              <button style={s.ticketBtn} type="submit">
+                Registrar gasto
+              </button>
+            </form>
           </div>
         )}
 
@@ -482,16 +516,19 @@ const s = {
   label: { color: "#666", fontSize: "0.85rem" },
   input: { padding: "13px 16px", borderRadius: "10px", border: "1px solid #2a2a2a", background: "#1a1a1a", color: "#f0f0f0", fontSize: "0.95rem", outline: "none" },
   submitBtn: { padding: "14px", borderRadius: "10px", border: "none", background: "#f5c518", color: "#0d0d0d", fontWeight: "700", fontSize: "1rem", cursor: "pointer", marginTop: "8px" },
-  nuevoWrap: { display: "grid", gridTemplateColumns: "1fr 1.4fr", gap: "32px", alignItems: "start" },
-  nuevoLeft: { background: "#111111", border: "1px solid #1f1a00", borderRadius: "14px", padding: "32px", display: "flex", flexDirection: "column", gap: "24px" },
-  nuevoTitle: { color: "#f5c518", fontSize: "1.4rem", fontWeight: "700", margin: 0 },
-  nuevoSubtitle: { color: "#555", fontSize: "0.9rem", margin: 0, lineHeight: "1.6" },
-  nuevoHint: { display: "flex", flexDirection: "column", gap: "12px" },
-  hintItem: { color: "#666", fontSize: "0.85rem", lineHeight: "1.5", padding: "10px 14px", background: "#1a1a1a", borderRadius: "10px", border: "1px solid #1f1f1f" },
-  nuevoRight: { background: "#111111", border: "1px solid #1f1a00", borderRadius: "14px", padding: "32px" },
-  labelBig: { color: "#888", fontSize: "0.85rem", fontWeight: "600", letterSpacing: "0.3px" },
-  inputBig: { padding: "14px 16px", borderRadius: "10px", border: "1px solid #2a2a2a", background: "#1a1a1a", color: "#f0f0f0", fontSize: "1rem", outline: "none", width: "100%", boxSizing: "border-box" },
-  submitBtnBig: { padding: "16px", borderRadius: "12px", border: "none", background: "#f5c518", color: "#0d0d0d", fontWeight: "800", fontSize: "1.05rem", cursor: "pointer", marginTop: "8px", letterSpacing: "0.3px" },
+  ticketWrap: { display: "flex", justifyContent: "center", paddingTop: "16px" },
+  ticket: { background: "#111111", border: "1px solid #2a2200", borderRadius: "20px", padding: "36px", width: "100%", maxWidth: "520px", display: "flex", flexDirection: "column", gap: "24px" },
+  ticketHeader: { display: "flex", alignItems: "center", gap: "20px" },
+  ticketIcon: { fontSize: "2.5rem", color: "#f5c518", background: "#1f1a00", width: "64px", height: "64px", borderRadius: "16px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
+  ticketLabel: { color: "#555", fontSize: "0.8rem", margin: "0 0 6px 0", textTransform: "uppercase", letterSpacing: "1px" },
+  montoGrande: { background: "transparent", border: "none", outline: "none", color: "#f5c518", fontSize: "2.4rem", fontWeight: "800", width: "100%", padding: 0 },
+  ticketDivider: { height: "1px", background: "#1f1f1f", borderRadius: "1px" },
+  ticketFieldLabel: { color: "#555", fontSize: "0.78rem", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: "10px", display: "block" },
+  chipsWrap: { display: "flex", flexWrap: "wrap", gap: "8px" },
+  chip: { padding: "8px 16px", borderRadius: "20px", border: "1px solid #2a2a2a", background: "#1a1a1a", color: "#888", cursor: "pointer", fontSize: "0.85rem", fontWeight: "500", transition: "all 0.15s" },
+  chipActive: { background: "#1f1a00", border: "1px solid #f5c518", color: "#f5c518" },
+  ticketInput: { width: "100%", padding: "13px 16px", borderRadius: "10px", border: "1px solid #2a2a2a", background: "#1a1a1a", color: "#f0f0f0", fontSize: "0.95rem", outline: "none", boxSizing: "border-box" },
+  ticketBtn: { padding: "16px", borderRadius: "12px", border: "none", background: "#f5c518", color: "#0d0d0d", fontWeight: "800", fontSize: "1rem", cursor: "pointer", letterSpacing: "0.3px" },
   barWrap: { display: "flex", alignItems: "center", gap: "10px" },
   barFill: { height: "6px", background: "#f5c518", borderRadius: "3px", minWidth: "4px", maxWidth: "200px" },
   barLabel: { color: "#666", fontSize: "0.8rem" },
