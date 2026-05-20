@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip,
@@ -6,6 +6,7 @@ import {
 } from "recharts";
 import API from "../api";
 import logo from "../assets/logo.png";
+import Toast from "../components/Toast";
 
 // usé tonos de amarillo/dorado para que todas las gráficas combinen con el tema
 const COLORS = ["#f5c518","#e6a800","#ffd84d","#b38f00","#ffe680","#cc9900","#ffed99","#a37700","#ffc200","#d4a800","#f0b800"];
@@ -18,6 +19,8 @@ export default function Dashboard() {
   const [periodo, setPeriodo] = useState("mensual");
   // esto controla cuál sección del sidebar está activa
   const [activePage, setActivePage] = useState("overview");
+  const [toast, setToast] = useState(null);
+  const closeToast = useCallback(() => setToast(null), []);
   const [form, setForm] = useState({
     categoria_id: "",
     motivo: "",
@@ -60,17 +63,17 @@ export default function Dashboard() {
       categoria_id: Number(form.categoria_id),
       monto: Number(form.monto),
     });
-    // limpio el formulario después de guardar
     setForm({ categoria_id: "", motivo: "", monto: "", fecha: new Date().toISOString().split("T")[0] });
     cargarGastos();
     cargarAnalisis();
+    setToast({ message: "¡Gasto guardado correctamente!", type: "success" });
   }
 
   async function eliminarGasto(id) {
     await API.delete(`/gastos/${id}`);
-    // recargo la lista y el análisis para que se actualice todo
     cargarGastos();
     cargarAnalisis();
+    setToast({ message: "Gasto eliminado.", type: "error" });
   }
 
   function logout() {
@@ -88,6 +91,7 @@ export default function Dashboard() {
 
   return (
     <div style={s.shell}>
+      {toast && <Toast message={toast.message} type={toast.type} onClose={closeToast} />}
       {/* barra lateral fija a la izquierda */}
       <aside style={s.sidebar}>
         <div style={s.sideTop}>

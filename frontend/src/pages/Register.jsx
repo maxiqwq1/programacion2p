@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import API from "../api";
 import logo from "../assets/logo.png";
+import Toast from "../components/Toast";
 
 export default function Register() {
   // necesito los tres campos para crear el usuario en la base de datos
@@ -9,22 +10,25 @@ export default function Register() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [toast, setToast] = useState(null);
   const navigate = useNavigate();
+  const closeToast = useCallback(() => setToast(null), []);
 
   async function handleRegister(e) {
     e.preventDefault();
     try {
-      // mando los datos al backend y si todo sale bien me redirige al login
       await API.post("/register", { nombre, email, password });
-      navigate("/login");
+      setToast({ message: "¡Cuenta creada exitosamente! Redirigiendo...", type: "success" });
+      setTimeout(() => navigate("/login"), 2000);
     } catch {
-      // si el email ya existe el backend devuelve 409 y muestro el mensaje
       setError("El email ya está registrado.");
+      setToast({ message: "El email ya está registrado.", type: "error" });
     }
   }
 
   return (
     <div style={s.page}>
+      {toast && <Toast message={toast.message} type={toast.type} onClose={closeToast} />}
       {/* lado izquierdo, igual que en login, solo cambia el texto del tagline */}
       <div style={s.left}>
         <div style={s.brand}>

@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import API from "../api";
 import logo from "../assets/logo.png";
+import Toast from "../components/Toast";
 
 export default function ResetPassword() {
   const [email, setEmail] = useState("");
@@ -9,7 +10,9 @@ export default function ResetPassword() {
   const [confirmar, setConfirmar] = useState("");
   const [error, setError] = useState("");
   const [exito, setExito] = useState("");
+  const [toast, setToast] = useState(null);
   const navigate = useNavigate();
+  const closeToast = useCallback(() => setToast(null), []);
 
   async function handleReset(e) {
     e.preventDefault();
@@ -30,19 +33,20 @@ export default function ResetPassword() {
     try {
       await API.post("/reset-password", { email, nueva_password: nuevaPassword });
       setExito("Contraseña actualizada. Redirigiendo al login...");
-      // espero 2 segundos y mando al login
+      setToast({ message: "¡Contraseña actualizada correctamente!", type: "success" });
       setTimeout(() => navigate("/login"), 2000);
     } catch (err) {
-      if (err.response?.status === 404) {
-        setError("No existe una cuenta con ese email.");
-      } else {
-        setError("Ocurrió un error. Intenta de nuevo.");
-      }
+      const msg = err.response?.status === 404
+        ? "No existe una cuenta con ese email."
+        : "Ocurrió un error. Intenta de nuevo.";
+      setError(msg);
+      setToast({ message: msg, type: "error" });
     }
   }
 
   return (
     <div style={s.page}>
+      {toast && <Toast message={toast.message} type={toast.type} onClose={closeToast} />}
       {/* panel izquierdo igual que en login y register */}
       <div style={s.left}>
         <div style={s.brand}>
