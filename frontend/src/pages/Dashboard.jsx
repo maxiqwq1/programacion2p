@@ -226,7 +226,7 @@ export default function Dashboard() {
           {/* los filtros no aplican en nuevo gasto */}
           <div style={{ ...s.filtros, visibility: activePage === "nuevo" ? "hidden" : "visible" }}>
             {/* filtro de periodo */}
-            <select style={s.periodoSelect} value={periodo} onChange={(e) => setPeriodo(e.target.value)}>
+            <select style={s.periodoSelect} value={periodo} onChange={(e) => { setPeriodo(e.target.value); setFechaInicio(""); setFechaFin(""); }}>
               <option value="">Todos</option>
               <option value="diario">Hoy</option>
               <option value="semanal">Esta semana</option>
@@ -237,46 +237,44 @@ export default function Dashboard() {
             </select>
 
             {/* filtro por categoría */}
-            <select style={s.periodoSelect} value={filtroCategoria} onChange={(e) => { setFiltroCategoria(e.target.value); setFechaInicio(""); setFechaFin(""); }}>
+            <select style={s.periodoSelect} value={filtroCategoria} onChange={(e) => setFiltroCategoria(e.target.value)}>
               <option value="">Todas las categorías</option>
               {categorias.map((c) => (
                 <option key={c.id} value={c.id}>{c.nombre}</option>
               ))}
             </select>
 
-            {/* rango de fechas — solo visible si se seleccionó una categoría */}
-            {filtroCategoria && (
-              <>
-                <input
-                  style={s.periodoSelect}
-                  type="date"
-                  value={fechaInicio}
-                  onChange={(e) => setFechaInicio(e.target.value)}
-                  title="Desde"
-                />
-                <input
-                  style={s.periodoSelect}
-                  type="date"
-                  value={fechaFin}
-                  onChange={(e) => setFechaFin(e.target.value)}
-                  title="Hasta"
-                />
-                {/* botón para limpiar los filtros de fecha */}
-                {(fechaInicio || fechaFin) && (
-                  <button
-                    style={s.clearBtn}
-                    onClick={() => { setFechaInicio(""); setFechaFin(""); }}
-                  >
-                    ✕ Fechas
-                  </button>
-                )}
-              </>
+            {/* fechas siempre visibles */}
+            <input
+              style={{ ...s.periodoSelect, color: fechaInicio ? "#f5c518" : "#444" }}
+              type="date"
+              value={fechaInicio}
+              onChange={(e) => { setFechaInicio(e.target.value); setPeriodo(""); }}
+              title="Desde"
+            />
+            <input
+              style={{ ...s.periodoSelect, color: fechaFin ? "#f5c518" : "#444" }}
+              type="date"
+              value={fechaFin}
+              onChange={(e) => { setFechaFin(e.target.value); setPeriodo(""); }}
+              title="Hasta"
+            />
+
+            {/* limpiar todos los filtros */}
+            {(fechaInicio || fechaFin || filtroCategoria || periodo) && (
+              <button
+                style={s.clearBtn}
+                onClick={() => {
+                  setPeriodo(""); setFiltroCategoria("");
+                  setFechaInicio(""); setFechaFin("");
+                  aplicarFiltros("", "", "", "");
+                }}
+              >
+                ✕ Limpiar
+              </button>
             )}
 
-            {/* botón principal para aplicar todos los filtros */}
-            <button style={s.applyBtn} onClick={aplicarFiltros}>
-              Aplicar
-            </button>
+            <button style={s.applyBtn} onClick={aplicarFiltros}>Aplicar</button>
           </div>
         </div>
 
