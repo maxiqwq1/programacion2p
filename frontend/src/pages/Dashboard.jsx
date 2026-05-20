@@ -573,6 +573,9 @@ export default function Dashboard() {
                     ))}
                   </div>
                 )}
+
+                {/* plan de acción */}
+                <PlanDeAccion finanzas={finanzas} />
               </>
             )}
 
@@ -690,6 +693,116 @@ function saludColor(salud) {
 
 function saludTexto(salud) {
   return { excelente: "Excelente ✓", buena: "Buena", ajustada: "Ajustada ⚠️", deficit: "Déficit ✗" }[salud] || "";
+}
+
+function PlanDeAccion({ finanzas }) {
+  const { sueldo, gastos_mes, ahorro, tasa_ahorro, salud, por_categoria, promedio_mensual } = finanzas;
+  const metaAhorro20 = sueldo * 0.20;
+  const metaAhorro10 = sueldo * 0.10;
+  const recorteNecesario = gastos_mes - (sueldo * 0.80);
+  const topCategoria = por_categoria[0];
+
+  const pasos = [];
+
+  if (salud === "deficit") {
+    pasos.push({
+      icono: "🚨",
+      titulo: "Estás en déficit",
+      desc: `Gastas $${Math.abs(ahorro).toLocaleString("es-CO")} más de lo que ganas. Para equilibrar tus finanzas necesitas reducir $${recorteNecesario.toLocaleString("es-CO")} en gastos este mes.`,
+      color: "#f87171",
+    });
+    if (topCategoria) {
+      const recorteTop = topCategoria.total * 0.30;
+      pasos.push({
+        icono: "✂️",
+        titulo: `Recorta en ${topCategoria.nombre}`,
+        desc: `Es tu mayor gasto ($${topCategoria.total.toLocaleString("es-CO")}). Reducirlo un 30% te ahorraría $${recorteTop.toLocaleString("es-CO")} — eso cubre ${((recorteTop / Math.abs(ahorro)) * 100).toFixed(0)}% de tu déficit.`,
+        color: "#fb923c",
+      });
+    }
+    pasos.push({
+      icono: "📋",
+      titulo: "Regla 50/30/20",
+      desc: `Con tu sueldo, deberías destinar máximo $${(sueldo * 0.50).toLocaleString("es-CO")} a necesidades, $${(sueldo * 0.30).toLocaleString("es-CO")} a gustos y guardar $${metaAhorro20.toLocaleString("es-CO")} (20%).`,
+      color: "#a78bfa",
+    });
+  } else if (salud === "ajustada") {
+    pasos.push({
+      icono: "⚠️",
+      titulo: "Estás muy ajustado",
+      desc: `Solo ahorras $${ahorro.toLocaleString("es-CO")} al mes (${tasa_ahorro}%). La meta recomendada es al menos el 10% — eso sería $${metaAhorro10.toLocaleString("es-CO")}/mes.`,
+      color: "#fb923c",
+    });
+    pasos.push({
+      icono: "🎯",
+      titulo: "Tu próximo objetivo",
+      desc: `Necesitas reducir $${(metaAhorro10 - ahorro).toLocaleString("es-CO")} en gastos para alcanzar el 10% de ahorro. Revisa las categorías no esenciales primero.`,
+      color: "#f5c518",
+    });
+    if (topCategoria) {
+      pasos.push({
+        icono: "🔍",
+        titulo: `Revisa ${topCategoria.nombre}`,
+        desc: `Representa el ${(topCategoria.total / sueldo * 100).toFixed(1)}% de tu sueldo. Un recorte del 15% liberaría $${(topCategoria.total * 0.15).toLocaleString("es-CO")} mensuales.`,
+        color: "#60a5fa",
+      });
+    }
+  } else if (salud === "buena") {
+    pasos.push({
+      icono: "👍",
+      titulo: "Vas bien — apunta al 20%",
+      desc: `Ahorras $${ahorro.toLocaleString("es-CO")} (${tasa_ahorro}%). Para alcanzar el 20% ideal necesitas $${(metaAhorro20 - ahorro).toLocaleString("es-CO")} más de ahorro mensual.`,
+      color: "#f5c518",
+    });
+    pasos.push({
+      icono: "📈",
+      titulo: "Invierte tu excedente",
+      desc: `Con $${ahorro.toLocaleString("es-CO")} mensuales de ahorro, en 12 meses acumularías $${(ahorro * 12).toLocaleString("es-CO")}. Considera fondos de inversión o CDT.`,
+      color: "#4ade80",
+    });
+  } else if (salud === "excelente") {
+    pasos.push({
+      icono: "🏆",
+      titulo: "Excelente control financiero",
+      desc: `Ahorras el ${tasa_ahorro}% de tu sueldo ($${ahorro.toLocaleString("es-CO")}/mes). En un año habrás acumulado $${(ahorro * 12).toLocaleString("es-CO")}.`,
+      color: "#4ade80",
+    });
+    pasos.push({
+      icono: "🚀",
+      titulo: "Haz crecer tu dinero",
+      desc: `Con tu disciplina, considera invertir $${(ahorro * 0.7).toLocaleString("es-CO")} y mantener $${(ahorro * 0.3).toLocaleString("es-CO")} como fondo de emergencia mensual.`,
+      color: "#a78bfa",
+    });
+  }
+
+  // alerta si el promedio histórico supera el sueldo
+  if (promedio_mensual > sueldo && sueldo > 0) {
+    pasos.push({
+      icono: "📊",
+      titulo: "Patrón histórico preocupante",
+      desc: `Tu promedio mensual de gasto ($${promedio_mensual.toLocaleString("es-CO")}) supera tu sueldo. Este no es un problema de un solo mes — revisa tus hábitos.`,
+      color: "#f87171",
+    });
+  }
+
+  return (
+    <div style={{ background: "#0d1117", border: "1px solid #1f1a00", borderRadius: "14px", padding: "24px", marginBottom: "20px" }}>
+      <h3 style={{ color: "#f5c518", fontSize: "1rem", fontWeight: "700", margin: "0 0 20px 0" }}>
+        💡 Plan de acción — ¿Qué hacer?
+      </h3>
+      <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+        {pasos.map((paso, i) => (
+          <div key={i} style={{ display: "flex", gap: "14px", padding: "14px 16px", background: "#111111", borderRadius: "10px", borderLeft: `3px solid ${paso.color}` }}>
+            <span style={{ fontSize: "1.3rem", flexShrink: 0 }}>{paso.icono}</span>
+            <div>
+              <p style={{ color: paso.color, fontWeight: "700", fontSize: "0.9rem", margin: "0 0 4px 0" }}>{paso.titulo}</p>
+              <p style={{ color: "#888", fontSize: "0.85rem", margin: 0, lineHeight: "1.5" }}>{paso.desc}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 const s = {
