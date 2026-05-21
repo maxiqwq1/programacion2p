@@ -179,146 +179,102 @@ export default function Dashboard() {
     }
   }
 
-  function exportarPDF() {
+  async function exportarPDF() {
+    let snowballData = snowball;
+    if (!snowballData && deudas.length > 0) {
+      const res = await API.get("/snowball");
+      snowballData = res.data;
+      setSnowball(res.data);
+    }
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-    const gold = [212, 168, 0];
-    const white = [240, 240, 240];
-    const gray = [120, 120, 120];
-    const red = [248, 113, 113];
-    const green = [74, 222, 128];
-    const W = 210;
-    let y = 18;
-
-    const line = (color = [40,40,40]) => {
-      doc.setDrawColor(...color);
-      doc.setLineWidth(0.3);
-      doc.line(15, y, W - 15, y);
-      y += 5;
-    };
-
-    const title = (text, size = 13, color = gold) => {
-      doc.setFontSize(size); doc.setTextColor(...color); doc.setFont("helvetica", "bold");
-      doc.text(text, 15, y); y += size * 0.5 + 2;
-    };
-
-    const text = (text, size = 9, color = white, x = 15) => {
-      doc.setFontSize(size); doc.setTextColor(...color); doc.setFont("helvetica", "normal");
-      doc.text(String(text), x, y); y += size * 0.45 + 1.5;
-    };
-
-    const bold = (t, size = 9, color = white, x = 15) => {
-      doc.setFontSize(size); doc.setTextColor(...color); doc.setFont("helvetica", "bold");
-      doc.text(String(t), x, y); y += size * 0.45 + 1.5;
-    };
-
-    const newPage = () => { doc.addPage(); y = 18; };
-    const checkPage = (needed = 20) => { if (y + needed > 280) newPage(); };
-
-    // fondo negro
-    doc.setFillColor(8, 8, 8);
-    doc.rect(0, 0, W, 297, "F");
-
-    // encabezado
-    doc.setFillColor(14, 14, 14);
-    doc.rect(0, 0, W, 28, "F");
-    title("StatKash — Reporte Financiero Personal", 14, gold);
-    text(`Generado el ${new Date().toLocaleDateString("es-CO", { day: "2-digit", month: "long", year: "numeric" })} · Usuario: ${nombre}`, 8, gray);
-    y += 4; line(gold);
-
-    // resumen financiero
-    if (finanzas && finanzas.sueldo > 0) {
-      title("Resumen Financiero del Mes", 12);
-      const saludMap = { excelente: "Excelente ✓", buena: "Buena", ajustada: "Ajustada ⚠", deficit: "Déficit ✗" };
-      const colorMap = { excelente: green, buena: gold, ajustada: [251,146,60], deficit: red };
-      bold(`Salud financiera: ${saludMap[finanzas.salud] || ""}`, 10, colorMap[finanzas.salud] || white);
-      text(`Sueldo mensual:       $${finanzas.sueldo.toLocaleString("es-CO")}`);
-      text(`Gastos este mes:      $${finanzas.gastos_mes.toLocaleString("es-CO")}`);
-      text(`Pagos de deudas:      $${finanzas.total_deuda_mensual.toLocaleString("es-CO")}`);
-      const colorAhorro = finanzas.ahorro >= 0 ? green : red;
-      bold(`Ahorro neto:          $${finanzas.ahorro.toLocaleString("es-CO")} (${finanzas.tasa_ahorro}%)`, 9, colorAhorro);
-      y += 3; line();
+    const gold=[212,168,0], white=[220,220,220], gray=[110,110,110];
+    const red=[220,80,80], green=[60,180,100], orange=[220,130,50];
+    const W=210; let y=18;
+    const newPage=()=>{ doc.addPage(); doc.setFillColor(8,8,8); doc.rect(0,0,W,297,"F"); y=18; };
+    const checkPage=(n=20)=>{ if(y+n>280) newPage(); };
+    const line=(color=[35,35,35])=>{ doc.setDrawColor(...color); doc.setLineWidth(0.3); doc.line(15,y,W-15,y); y+=5; };
+    const ttl=(t,size=13,color=gold)=>{ doc.setFontSize(size); doc.setTextColor(...color); doc.setFont("helvetica","bold"); doc.text(t,15,y); y+=size*0.5+3; };
+    const rw=(t,size=9,color=white,x=15)=>{ doc.setFontSize(size); doc.setTextColor(...color); doc.setFont("helvetica","normal"); const ls=doc.splitTextToSize(String(t),W-x-15); doc.text(ls,x,y); y+=(size*0.45+1.5)*ls.length; };
+    const bld=(t,size=9,color=white,x=15)=>{ doc.setFontSize(size); doc.setTextColor(...color); doc.setFont("helvetica","bold"); doc.text(String(t),x,y); y+=size*0.45+1.5; };
+    doc.setFillColor(8,8,8); doc.rect(0,0,W,297,"F");
+    doc.setFillColor(14,14,14); doc.rect(0,0,W,30,"F");
+    ttl("StatKash - Reporte Financiero Personal",15,gold);
+    rw("Generado el "+new Date().toLocaleDateString("es-CO",{day:"2-digit",month:"long",year:"numeric"})+"   Usuario: "+nombre,8,gray);
+    y+=3; line(gold);
+    if(finanzas&&finanzas.sueldo>0){
+      ttl("Resumen Financiero del Mes",12);
+      const sMap={excelente:"EXCELENTE",buena:"BUENA",ajustada:"AJUSTADA",deficit:"DEFICIT"};
+      const sCol={excelente:green,buena:gold,ajustada:orange,deficit:red};
+      bld("Salud financiera: "+(sMap[finanzas.salud]||""),10,(sCol[finanzas.salud]||white));
+      rw("Sueldo mensual:     $"+finanzas.sueldo.toLocaleString("es-CO"));
+      rw("Gastos este mes:    $"+finanzas.gastos_mes.toLocaleString("es-CO"));
+      rw("Pagos de deudas:    $"+finanzas.total_deuda_mensual.toLocaleString("es-CO"));
+      bld("Ahorro neto:        $"+finanzas.ahorro.toLocaleString("es-CO")+" ("+finanzas.tasa_ahorro+"%)",9,finanzas.ahorro>=0?green:red);
+      y+=3; line();
     }
-
-    // plan de acción
-    if (finanzas && finanzas.sueldo > 0) {
-      title("Plan de Acción Recomendado", 12);
-      const metaAhorro20 = finanzas.sueldo * 0.20;
-      const metaAhorro10 = finanzas.sueldo * 0.10;
-      if (finanzas.salud === "deficit") {
-        bold("⚠ Estás en déficit", 9, red);
-        text(`Gastas $${Math.abs(finanzas.ahorro).toLocaleString("es-CO")} más de lo que ganas.`);
-        text(`Necesitas reducir $${(finanzas.gastos_mes - finanzas.sueldo * 0.80).toLocaleString("es-CO")} en gastos.`);
-        text(`Meta: máximo 80% del sueldo en gastos ($${(finanzas.sueldo * 0.80).toLocaleString("es-CO")}).`);
-        if (finanzas.por_categoria[0]) {
-          text(`Mayor gasto: ${finanzas.por_categoria[0].categoria} ($${finanzas.por_categoria[0].total.toLocaleString("es-CO")})`);
-          text(`  Reducirlo 30% = ahorro de $${(finanzas.por_categoria[0].total * 0.30).toLocaleString("es-CO")}/mes.`);
-        }
-        text(`Regla 50/30/20: necesidades $${(finanzas.sueldo*0.50).toLocaleString("es-CO")} · gustos $${(finanzas.sueldo*0.30).toLocaleString("es-CO")} · ahorro $${metaAhorro20.toLocaleString("es-CO")}.`);
-      } else if (finanzas.salud === "ajustada") {
-        bold("⚠ Finanzas ajustadas", 9, [251,146,60]);
-        text(`Ahorras $${finanzas.ahorro.toLocaleString("es-CO")}/mes (${finanzas.tasa_ahorro}%). Meta mínima: 10% = $${metaAhorro10.toLocaleString("es-CO")}.`);
-        text(`Reduce $${(metaAhorro10 - finanzas.ahorro).toLocaleString("es-CO")} en gastos para alcanzar esa meta.`);
-      } else if (finanzas.salud === "buena") {
-        bold("✓ Vas bien — apunta al 20%", 9, gold);
-        text(`Ahorras $${finanzas.ahorro.toLocaleString("es-CO")}/mes. En 12 meses acumularías $${(finanzas.ahorro*12).toLocaleString("es-CO")}.`);
-        text(`Considera invertir el excedente en fondos o CDT.`);
-      } else if (finanzas.salud === "excelente") {
-        bold("✓ Excelente control financiero", 9, green);
-        text(`Ahorras el ${finanzas.tasa_ahorro}% de tu sueldo. En un año: $${(finanzas.ahorro*12).toLocaleString("es-CO")}.`);
-        text(`Invierte $${(finanzas.ahorro*0.70).toLocaleString("es-CO")} y mantén $${(finanzas.ahorro*0.30).toLocaleString("es-CO")} como fondo de emergencia.`);
+    if(finanzas&&finanzas.sueldo>0){
+      checkPage(35); ttl("Plan de Accion Recomendado",12);
+      const m20=finanzas.sueldo*0.20, m10=finanzas.sueldo*0.10;
+      if(finanzas.salud==="deficit"){
+        bld("ALERTA: Estas en deficit",9,red);
+        rw("Gastas $"+Math.abs(finanzas.ahorro).toLocaleString("es-CO")+" mas de lo que ganas. Debes reducir gastos inmediatamente.");
+        rw("Necesitas recortar $"+(finanzas.gastos_mes-finanzas.sueldo*0.80).toLocaleString("es-CO")+" para equilibrar tus finanzas.");
+        if(finanzas.por_categoria[0]) rw("Mayor gasto: "+finanzas.por_categoria[0].categoria+" ($"+finanzas.por_categoria[0].total.toLocaleString("es-CO")+"). Reducirlo 30% = $"+(finanzas.por_categoria[0].total*0.30).toLocaleString("es-CO")+"/mes de ahorro.");
+        rw("Regla 50/30/20: necesidades $"+(finanzas.sueldo*0.50).toLocaleString("es-CO")+" | gustos $"+(finanzas.sueldo*0.30).toLocaleString("es-CO")+" | ahorro $"+m20.toLocaleString("es-CO")+".");
+      } else if(finanzas.salud==="ajustada"){
+        bld("ATENCION: Finanzas ajustadas",9,orange);
+        rw("Ahorras $"+finanzas.ahorro.toLocaleString("es-CO")+"/mes ("+finanzas.tasa_ahorro+"%). Meta minima 10% = $"+m10.toLocaleString("es-CO")+"/mes.");
+        rw("Necesitas reducir $"+(m10-finanzas.ahorro).toLocaleString("es-CO")+" en gastos para alcanzar esa meta.");
+        if(finanzas.por_categoria[0]) rw("Revisa el gasto en "+finanzas.por_categoria[0].categoria+": "+(finanzas.por_categoria[0].total/finanzas.sueldo*100).toFixed(1)+"% de tu sueldo.");
+      } else if(finanzas.salud==="buena"){
+        bld("Vas bien - apunta al 20% de ahorro",9,gold);
+        rw("Ahorras $"+finanzas.ahorro.toLocaleString("es-CO")+"/mes. En 12 meses acumularias $"+(finanzas.ahorro*12).toLocaleString("es-CO")+".");
+        rw("Para llegar al 20% necesitas $"+(m20-finanzas.ahorro).toLocaleString("es-CO")+" mas de ahorro mensual.");
+      } else if(finanzas.salud==="excelente"){
+        bld("Excelente control financiero",9,green);
+        rw("Ahorras el "+finanzas.tasa_ahorro+"% de tu sueldo ($"+finanzas.ahorro.toLocaleString("es-CO")+"/mes). En un ano: $"+(finanzas.ahorro*12).toLocaleString("es-CO")+".");
+        rw("Invierte $"+(finanzas.ahorro*0.70).toLocaleString("es-CO")+" y manten $"+(finanzas.ahorro*0.30).toLocaleString("es-CO")+" como fondo de emergencia mensual.");
       }
-      y += 3; line();
+      y+=3; line();
     }
-
-    // plan bola de nieve
-    if (snowball && snowball.deudas.length > 0) {
-      checkPage(30);
-      title("Plan Bola de Nieve — Deudas", 12);
-      text(`Dinero extra disponible: $${snowball.dinero_extra.toLocaleString("es-CO")}/mes`, 9, gold);
-      text(`Tiempo total para quedar libre de deudas: ${snowball.meses_total >= 600 ? "No viable con ingresos actuales" : `${snowball.meses_total} meses (${(snowball.meses_total/12).toFixed(1)} años)`}`, 9, snowball.meses_total >= 600 ? red : green);
-      y += 2;
-      snowball.deudas.forEach((d, i) => {
+    if(snowballData&&snowballData.deudas&&snowballData.deudas.length>0){
+      checkPage(30); ttl("Plan Bola de Nieve - Deudas",12);
+      rw("Dinero extra disponible: $"+snowballData.dinero_extra.toLocaleString("es-CO")+"/mes",9,gold);
+      const tt=snowballData.meses_total>=600?"No viable - necesitas aumentar ingresos o reducir gastos":snowballData.meses_total+" meses ("+(snowballData.meses_total/12).toFixed(1)+" anos)";
+      bld("Tiempo total libre de deudas: "+tt,9,snowballData.meses_total>=600?red:green);
+      y+=3;
+      snowballData.deudas.forEach(d=>{
         checkPage(18);
-        bold(`${d.orden}. ${d.nombre}`, 9, gold);
-        text(`   Saldo: $${d.monto_original.toLocaleString("es-CO")}  ·  Pago/mes con snowball: $${d.pago_mensual.toLocaleString("es-CO")}  ·  Meses: ${d.meses >= 600 ? "∞" : d.meses}  ·  Interés total: $${d.interes_total.toLocaleString("es-CO")}`);
+        bld(d.orden+". "+d.nombre,9,gold);
+        rw("   Saldo: $"+d.monto_original.toLocaleString("es-CO")+"  |  Pago mensual: $"+d.pago_mensual.toLocaleString("es-CO")+"  |  Meses: "+(d.meses>=600?"No viable":d.meses)+"  |  Interes: $"+d.interes_total.toLocaleString("es-CO"),8,white,18);
       });
-      y += 3; line();
+      y+=3; line();
+    } else if(deudas.length===0){
+      checkPage(15); ttl("Deudas",12);
+      bld("Sin deudas registradas - excelente!",9,green); y+=3; line();
     }
-
-    // gastos del período
-    checkPage(20);
-    title(`Transacciones (${gastosFiltrados.length} registros)`, 12);
-    const headers = ["Categoría", "Motivo", "Monto", "Fecha"];
-    const colX = [15, 60, 130, 165];
-    doc.setFontSize(8); doc.setTextColor(...gray); doc.setFont("helvetica", "bold");
-    headers.forEach((h, i) => doc.text(h, colX[i], y)); y += 5;
-    line([30,30,30]);
-
-    gastosFiltrados.slice(0, 80).forEach((g) => {
-      checkPage(7);
-      doc.setFontSize(8); doc.setFont("helvetica", "normal");
-      doc.setTextColor(...white); doc.text(g.categoria, colX[0], y);
-      doc.text(g.motivo.slice(0, 28), colX[1], y);
-      doc.setTextColor(...gold); doc.text(`$${g.monto.toLocaleString("es-CO")}`, colX[2], y);
-      doc.setTextColor(...gray); doc.text(g.fecha, colX[3], y);
-      y += 5;
+    checkPage(20); ttl("Transacciones ("+gastosFiltrados.length+" registros)",12);
+    const colX=[15,62,130,168];
+    doc.setFontSize(8); doc.setTextColor(...gray); doc.setFont("helvetica","bold");
+    ["Categoria","Motivo","Monto","Fecha"].forEach((h,i)=>doc.text(h,colX[i],y)); y+=5; line([30,30,30]);
+    gastosFiltrados.slice(0,80).forEach(g=>{
+      checkPage(7); doc.setFontSize(8); doc.setFont("helvetica","normal");
+      doc.setTextColor(...white); doc.text(g.categoria.slice(0,14),colX[0],y);
+      doc.setTextColor(...white); doc.text(g.motivo.slice(0,30),colX[1],y);
+      doc.setTextColor(...gold); doc.text("$"+g.monto.toLocaleString("es-CO"),colX[2],y);
+      doc.setTextColor(...gray); doc.text(g.fecha,colX[3],y); y+=5;
     });
-
-    // pie de página
-    const pages = doc.getNumberOfPages();
-    for (let i = 1; i <= pages; i++) {
-      doc.setPage(i);
-      doc.setFillColor(8,8,8);
-      doc.rect(0, 288, W, 10, "F");
+    const pages=doc.getNumberOfPages();
+    for(let i=1;i<=pages;i++){
+      doc.setPage(i); doc.setFillColor(8,8,8); doc.rect(0,288,W,10,"F");
       doc.setFontSize(7); doc.setTextColor(...gray);
-      doc.text("StatKash — Reporte confidencial generado automáticamente", 15, 294);
-      doc.text(`Pág. ${i} / ${pages}`, W - 25, 294);
+      doc.text("StatKash - Reporte confidencial",15,294);
+      doc.text("Pag. "+i+" / "+pages,W-22,294);
     }
-
-    doc.save(`StatKash_Reporte_${new Date().toISOString().split("T")[0]}.pdf`);
+    doc.save("StatKash_Reporte_"+new Date().toISOString().split("T")[0]+".pdf");
   }
 
-  function exportarCSV() {
+    function exportarCSV() {
     const headers = ["ID", "Categoría", "Motivo", "Monto", "Fecha"];
     const rows = gastos.map(g => [g.id, g.categoria, g.motivo, g.monto, g.fecha]);
     const csv = [headers, ...rows].map(r => r.join(",")).join("\n");
