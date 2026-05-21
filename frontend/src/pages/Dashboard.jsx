@@ -227,7 +227,7 @@ export default function Dashboard() {
   const navItems = [
     { id: "overview", icon: "⬡", label: "Vista General" },
     { id: "gastos", icon: "↕", label: "Transacciones" },
-    { id: "nuevo", icon: "+", label: "Nuevo Gasto" },
+    { id: "nuevo", icon: "+", label: "Registrar" },
     { id: "finanzas", icon: "◈", label: "Mis Finanzas" },
     { id: "deudas", icon: "◎", label: "Deudas" },
   ];
@@ -578,83 +578,85 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* --- NUEVO GASTO --- diseño tipo recibo */}
+        {/* --- REGISTRAR --- ticket + categorías */}
         {activePage === "nuevo" && (
           <div style={s.ticketWrap}>
-            <form onSubmit={handleSubmit} style={s.ticket}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "16px", width: "100%", maxWidth: "520px" }}>
 
-              {/* encabezado del recibo */}
-              <div style={s.ticketHeader}>
-                <span style={s.ticketIcon}>＄</span>
-                <div>
-                  <p style={s.ticketLabel}>¿Cuánto gastaste?</p>
-                  <input
-                    style={s.montoGrande}
-                    type="number"
-                    min="0"
-                    placeholder="0"
-                    value={form.monto}
-                    onChange={(e) => setForm({ ...form, monto: e.target.value })}
-                    required
-                  />
+              {/* formulario de gasto */}
+              <form onSubmit={handleSubmit} style={s.ticket}>
+                <div style={s.ticketHeader}>
+                  <span style={s.ticketIcon}>＄</span>
+                  <div>
+                    <p style={s.ticketLabel}>¿Cuánto gastaste?</p>
+                    <input
+                      style={s.montoGrande}
+                      type="number" min="0" placeholder="0"
+                      value={form.monto}
+                      onChange={(e) => setForm({ ...form, monto: e.target.value })}
+                      required
+                    />
+                  </div>
                 </div>
-              </div>
 
-              <div style={s.ticketDivider} />
+                <div style={s.ticketDivider} />
 
-              {/* selección de categoría como chips */}
-              <div style={s.formGroup}>
-                <label style={s.ticketFieldLabel}>Categoría</label>
-                <div style={s.chipsWrap}>
-                  {categorias.map((c) => (
-                    <button
-                      key={c.id}
-                      type="button"
-                      onClick={() => setForm({ ...form, categoria_id: String(c.id) })}
-                      style={{
-                        ...s.chip,
-                        ...(form.categoria_id === String(c.id) ? s.chipActive : {}),
-                      }}
-                    >
-                      {c.nombre}
-                    </button>
+                <div style={s.formGroup}>
+                  <label style={s.ticketFieldLabel}>Categoría</label>
+                  <div style={s.chipsWrap}>
+                    {categorias.map((c) => (
+                      <button key={c.id} type="button"
+                        onClick={() => setForm({ ...form, categoria_id: String(c.id) })}
+                        style={{ ...s.chip, ...(form.categoria_id === String(c.id) ? s.chipActive : {}) }}>
+                        {c.nombre}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={s.ticketDivider} />
+
+                <div style={s.formGroup}>
+                  <label style={s.ticketFieldLabel}>¿En qué gastaste?</label>
+                  <input style={s.ticketInput} type="text" placeholder="Ej: Mercado, Netflix, Gasolina..."
+                    value={form.motivo} onChange={(e) => setForm({ ...form, motivo: e.target.value })} required />
+                </div>
+
+                <div style={s.formGroup}>
+                  <label style={s.ticketFieldLabel}>Fecha</label>
+                  <input style={s.ticketInput} type="date"
+                    value={form.fecha} onChange={(e) => setForm({ ...form, fecha: e.target.value })} required />
+                </div>
+
+                <div style={s.ticketDivider} />
+
+                <button style={s.ticketBtn} type="submit">Registrar gasto</button>
+              </form>
+
+              {/* gestión de categorías — debajo del formulario */}
+              <div style={{ ...s.ticket, gap: "12px" }}>
+                <p style={s.ticketFieldLabel}>Gestionar categorías</p>
+                <p style={{ color: "#333", fontSize: "0.76rem", margin: "-4px 0 4px 0" }}>
+                  Crea una categoría antes de registrar si no la encuentras arriba
+                </p>
+                <form onSubmit={agregarCategoria} style={{ display: "flex", gap: "8px" }}>
+                  <input style={{ ...s.ticketInput, flex: 1 }} placeholder="Nueva categoría..."
+                    value={nuevaCategoria} onChange={e => setNuevaCategoria(e.target.value)} />
+                  <button style={{ ...s.ticketBtn, padding: "10px 16px", fontSize: "0.85rem" }} type="submit">
+                    + Agregar
+                  </button>
+                </form>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "7px" }}>
+                  {categorias.map(c => (
+                    <div key={c.id} style={{ display: "flex", alignItems: "center", gap: "5px", background: "rgba(245,197,24,0.07)", border: "1px solid rgba(245,197,24,0.14)", borderRadius: "20px", padding: "5px 12px" }}>
+                      <span style={{ color: "#c9a100", fontSize: "0.8rem" }}>{c.nombre}</span>
+                      <button onClick={() => eliminarCategoria(c.id)} style={{ background: "transparent", border: "none", color: "#333", cursor: "pointer", fontSize: "0.75rem", padding: 0 }}>✕</button>
+                    </div>
                   ))}
                 </div>
               </div>
 
-              <div style={s.ticketDivider} />
-
-              {/* motivo */}
-              <div style={s.formGroup}>
-                <label style={s.ticketFieldLabel}>¿En qué gastaste?</label>
-                <input
-                  style={s.ticketInput}
-                  type="text"
-                  placeholder="Ej: Mercado, Netflix, Gasolina..."
-                  value={form.motivo}
-                  onChange={(e) => setForm({ ...form, motivo: e.target.value })}
-                  required
-                />
-              </div>
-
-              {/* fecha */}
-              <div style={s.formGroup}>
-                <label style={s.ticketFieldLabel}>Fecha</label>
-                <input
-                  style={s.ticketInput}
-                  type="date"
-                  value={form.fecha}
-                  onChange={(e) => setForm({ ...form, fecha: e.target.value })}
-                  required
-                />
-              </div>
-
-              <div style={s.ticketDivider} />
-
-              <button style={s.ticketBtn} type="submit">
-                Registrar gasto
-              </button>
-            </form>
+            </div>
           </div>
         )}
 
@@ -801,22 +803,6 @@ export default function Dashboard() {
               </div>
             )}
 
-            {/* gestión de categorías */}
-            <div style={s.finCard}>
-              <h3 style={s.finTitle}>🏷️ Mis categorías</h3>
-              <form onSubmit={agregarCategoria} style={{ display: "flex", gap: "10px", marginBottom: "16px" }}>
-                <input style={{ ...s.ticketInput, flex: 1 }} placeholder="Nueva categoría..." value={nuevaCategoria} onChange={e => setNuevaCategoria(e.target.value)} />
-                <button style={s.applyBtn} type="submit">Agregar</button>
-              </form>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
-                {categorias.map(c => (
-                  <div key={c.id} style={{ display: "flex", alignItems: "center", gap: "6px", background: "rgba(245,197,24,0.08)", border: "1px solid rgba(245,197,24,0.15)", borderRadius: "20px", padding: "6px 14px" }}>
-                    <span style={{ color: "#c9a100", fontSize: "0.83rem" }}>{c.nombre}</span>
-                    <button onClick={() => eliminarCategoria(c.id)} style={{ background: "transparent", border: "none", color: "#444", cursor: "pointer", fontSize: "0.8rem", padding: "0 0 0 4px" }}>✕</button>
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
         )}
 
