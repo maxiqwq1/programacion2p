@@ -140,20 +140,25 @@ export default function Dashboard() {
     e.preventDefault();
     await API.post("/gastos", {
       ...form,
-      // el backend espera números, no strings, por eso convierto acá
       categoria_id: Number(form.categoria_id),
       monto: Number(form.monto),
     });
     setForm({ categoria_id: "", motivo: "", monto: "", fecha: new Date().toISOString().split("T")[0] });
-    cargarGastos();
-    cargarAnalisis();
+    // recargo todo: gastos con filtros actuales, análisis y finanzas
+    await Promise.all([
+      aplicarFiltros(periodo, filtroCategoria, fechaInicio, fechaFin),
+      cargarFinanzas(),
+    ]);
+    setActivePage("overview");
     setToast({ message: "¡Gasto guardado correctamente!", type: "success" });
   }
 
   async function eliminarGasto(id) {
     await API.delete(`/gastos/${id}`);
-    cargarGastos();
-    cargarAnalisis();
+    await Promise.all([
+      aplicarFiltros(periodo, filtroCategoria, fechaInicio, fechaFin),
+      cargarFinanzas(),
+    ]);
     setToast({ message: "Gasto eliminado.", type: "error" });
   }
 
