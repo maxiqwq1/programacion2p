@@ -79,16 +79,15 @@ export default function Dashboard() {
   }
 
   async function cargarFinanzas() {
-    try {
-      const [resF, resS, resP] = await Promise.all([
-        API.get("/finanzas"),
-        API.get("/sueldo"),
-        API.get("/proyeccion"),
-      ]);
-      setFinanzas(resF.data);
-      setSueldo(resS.data.sueldo || "");
-      setProyeccion(resP.data);
-    } catch {}
+    // allSettled no cancela todo si una falla — cada llamada es independiente
+    const [resF, resS, resP] = await Promise.allSettled([
+      API.get("/finanzas"),
+      API.get("/sueldo"),
+      API.get("/proyeccion"),
+    ]);
+    if (resF.status === "fulfilled") setFinanzas(resF.value.data);
+    if (resS.status === "fulfilled") setSueldo(resS.value.data.sueldo || "");
+    if (resP.status === "fulfilled") setProyeccion(resP.value.data);
   }
 
   async function cargarDeudas() {
@@ -101,7 +100,7 @@ export default function Dashboard() {
   async function guardarSueldo(e) {
     e.preventDefault();
     await API.put("/sueldo", { sueldo: Number(sueldo) });
-    cargarFinanzas();
+    await cargarFinanzas();
     setToast({ message: "Sueldo actualizado correctamente.", type: "success" });
   }
 
