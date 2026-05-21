@@ -180,12 +180,26 @@ export default function Dashboard() {
   }
 
   async function exportarPDF() {
+    // aplicar filtros actuales antes de generar para que el PDF refleje lo que se ve en pantalla
+    await fetchGastos(periodo, filtroCategoria, fechaInicio, fechaFin);
+
     let snowballData = snowball;
     if (!snowballData && deudas.length > 0) {
       const res = await API.get("/snowball");
       snowballData = res.data;
       setSnowball(res.data);
     }
+
+    // etiqueta del filtro activo para el encabezado del PDF
+    const periodoLabel = {
+      "": "Todos los registros", diario: "Hoy", semanal: "Esta semana",
+      mensual: "Este mes", trimestral: "Ultimos 3 meses",
+      semestral: "Ultimos 6 meses", anual: "Este ano",
+    }[periodo] || "Todos los registros";
+    const catLabel = filtroCategoria ? (categorias.find(c => String(c.id) === filtroCategoria)?.nombre || "") : "";
+    const fechaLabel = fechaInicio && fechaFin ? `${fechaInicio} al ${fechaFin}` : "";
+    const filtroActivo = [periodoLabel, catLabel, fechaLabel].filter(Boolean).join(" | ");
+
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
     const gold=[212,168,0], white=[220,220,220], gray=[110,110,110];
     const red=[220,80,80], green=[60,180,100], orange=[220,130,50];
@@ -200,6 +214,7 @@ export default function Dashboard() {
     doc.setFillColor(14,14,14); doc.rect(0,0,W,30,"F");
     ttl("StatKash - Reporte Financiero Personal",15,gold);
     rw("Generado el "+new Date().toLocaleDateString("es-CO",{day:"2-digit",month:"long",year:"numeric"})+"   Usuario: "+nombre,8,gray);
+    rw("Filtro aplicado: "+filtroActivo,8,orange);
     y+=3; line(gold);
     if(finanzas&&finanzas.sueldo>0){
       ttl("Resumen Financiero del Mes",12);
@@ -253,7 +268,7 @@ export default function Dashboard() {
       checkPage(15); ttl("Deudas",12);
       bld("Sin deudas registradas - excelente!",9,green); y+=3; line();
     }
-    checkPage(20); ttl("Transacciones ("+gastosFiltrados.length+" registros)",12);
+    checkPage(20); ttl("Transacciones - "+filtroActivo+" ("+gastosFiltrados.length+" registros)",11);
     const colX=[15,62,130,168];
     doc.setFontSize(8); doc.setTextColor(...gray); doc.setFont("helvetica","bold");
     ["Categoria","Motivo","Monto","Fecha"].forEach((h,i)=>doc.text(h,colX[i],y)); y+=5; line([30,30,30]);
