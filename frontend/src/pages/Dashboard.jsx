@@ -50,9 +50,10 @@ export default function Dashboard() {
   const nombre = localStorage.getItem("nombre");
 
   useEffect(() => {
+    // paso los valores iniciales explícitamente para evitar closure stale
     Promise.all([
       cargarCategorias(),
-      aplicarFiltros(),
+      fetchGastos("mensual", "", "", ""),
       cargarAnalisis(),
       cargarFinanzas(),
       cargarDeudas(),
@@ -64,28 +65,30 @@ export default function Dashboard() {
     setCategorias(res.data);
   }
 
-  async function aplicarFiltros(p, cat, fi, ff) {
-    // recibo los valores como parámetros para evitar problemas de closure stale
-    const _periodo  = p   !== undefined ? p   : periodo;
-    const _cat      = cat !== undefined ? cat : filtroCategoria;
-    const _fi       = fi  !== undefined ? fi  : fechaInicio;
-    const _ff       = ff  !== undefined ? ff  : fechaFin;
-
+  // función base que hace el fetch con parámetros explícitos
+  async function fetchGastos(p, cat, fi, ff) {
     const params = new URLSearchParams();
-    if (_periodo) params.append("periodo", _periodo);
-    if (_cat)     params.append("categoria_id", _cat);
-    if (_fi)      params.append("fecha_inicio", _fi);
-    if (_ff)      params.append("fecha_fin", _ff);
-
+    if (p)   params.append("periodo", p);
+    if (cat) params.append("categoria_id", cat);
+    if (fi)  params.append("fecha_inicio", fi);
+    if (ff)  params.append("fecha_fin", ff);
     const res = await API.get(`/gastos?${params.toString()}`);
     setGastos(res.data);
-    cargarAnalisis();
+  }
+
+  // función que llama con los estados actuales — siempre pasar valores como args
+  async function aplicarFiltros(p, cat, fi, ff) {
+    const _p   = p   !== undefined ? p   : periodo;
+    const _cat = cat !== undefined ? cat : filtroCategoria;
+    const _fi  = fi  !== undefined ? fi  : fechaInicio;
+    const _ff  = ff  !== undefined ? ff  : fechaFin;
+    await fetchGastos(_p, _cat, _fi, _ff);
+    await cargarAnalisis();
     setToast({ message: "Filtros aplicados.", type: "success" });
   }
 
   async function cargarGastos() {
-    const res = await API.get("/gastos");
-    setGastos(res.data);
+    await fetchGastos(periodo, filtroCategoria, fechaInicio, fechaFin);
   }
 
   async function cargarFinanzas() {
@@ -344,9 +347,9 @@ export default function Dashboard() {
       monto: Number(form.monto),
     });
     setForm({ categoria_id: "", motivo: "", monto: "", fecha: new Date().toISOString().split("T")[0] });
-    // recargo todo: gastos con filtros actuales, análisis y finanzas
     await Promise.all([
-      aplicarFiltros(periodo, filtroCategoria, fechaInicio, fechaFin),
+      fetchGastos(periodo, filtroCategoria, fechaInicio, fechaFin),
+      cargarAnalisis(),
       cargarFinanzas(),
     ]);
     setActivePage("overview");
@@ -356,7 +359,8 @@ export default function Dashboard() {
   async function eliminarGasto(id) {
     await API.delete(`/gastos/${id}`);
     await Promise.all([
-      aplicarFiltros(periodo, filtroCategoria, fechaInicio, fechaFin),
+      fetchGastos(periodo, filtroCategoria, fechaInicio, fechaFin),
+      cargarAnalisis(),
       cargarFinanzas(),
     ]);
     setToast({ message: "Gasto eliminado.", type: "error" });
@@ -500,7 +504,7 @@ export default function Dashboard() {
               </button>
             )}
 
-            <button style={s.applyBtn} onClick={aplicarFiltros}>Aplicar</button>
+            <button style={s.applyBtn} onClick={() => aplicarFiltros(periodo, filtroCategoria, fechaInicio, fechaFin)}>Aplicar</button>
           </div>
         </div>
 
