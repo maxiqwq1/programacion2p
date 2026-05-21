@@ -27,6 +27,11 @@ export default function Dashboard() {
   const [snowball, setSnowball] = useState(null);
   const [proyeccion, setProyeccion] = useState(null);
   const [formDeuda, setFormDeuda] = useState({ nombre: "", monto_actual: "", interes_mensual: "", pago_minimo: "", fecha_inicio: new Date().toISOString().split("T")[0] });
+  const [editGasto, setEditGasto] = useState(null); // gasto que se está editando
+  const [busqueda, setBusqueda] = useState("");
+  const [nuevaCategoria, setNuevaCategoria] = useState("");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const isMobile = useIsMobile();
   // esto controla cuál sección del sidebar está activa
   const [activePage, setActivePage] = useState("overview");
   const [toast, setToast] = useState(null);
@@ -130,6 +135,58 @@ export default function Dashboard() {
     setSnowball(res.data);
   }
 
+  async function guardarEdicion(e) {
+    e.preventDefault();
+    await API.put(`/gastos/${editGasto.id}`, {
+      categoria_id: Number(editGasto.categoria_id),
+      motivo: editGasto.motivo,
+      monto: Number(editGasto.monto),
+      fecha: editGasto.fecha,
+    });
+    setEditGasto(null);
+    await Promise.all([aplicarFiltros(periodo, filtroCategoria, fechaInicio, fechaFin), cargarFinanzas()]);
+    setToast({ message: "Gasto actualizado.", type: "success" });
+  }
+
+  async function agregarCategoria(e) {
+    e.preventDefault();
+    if (!nuevaCategoria.trim()) return;
+    try {
+      await API.post("/categorias", { nombre: nuevaCategoria.trim() });
+      setNuevaCategoria("");
+      cargarCategorias();
+      setToast({ message: "Categoría creada.", type: "success" });
+    } catch {
+      setToast({ message: "Ya existe esa categoría.", type: "error" });
+    }
+  }
+
+  async function eliminarCategoria(id) {
+    try {
+      await API.delete(`/categorias/${id}`);
+      cargarCategorias();
+      setToast({ message: "Categoría eliminada.", type: "success" });
+    } catch {
+      setToast({ message: "No puedes eliminar una categoría con gastos.", type: "error" });
+    }
+  }
+
+  function exportarCSV() {
+    const headers = ["ID", "Categoría", "Motivo", "Monto", "Fecha"];
+    const rows = gastos.map(g => [g.id, g.categoria, g.motivo, g.monto, g.fecha]);
+    const csv = [headers, ...rows].map(r => r.join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = "statkash_gastos.csv"; a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  const gastosFiltrados = gastos.filter(g =>
+    g.motivo.toLowerCase().includes(busqueda.toLowerCase()) ||
+    g.categoria.toLowerCase().includes(busqueda.toLowerCase())
+  );
+
   async function cargarAnalisis() {
     const res = await API.get("/analisis");
     setAnalisis(res.data);
@@ -176,49 +233,70 @@ export default function Dashboard() {
   ];
 
   return (
-    <div style={s.shell}>
+    <div style={{ ...s.shell, flexDirection: isMobile ? "column" : "row" }}>
       {toast && <Toast message={toast.message} type={toast.type} onClose={closeToast} />}
-      {/* barra lateral fija a la izquierda */}
-      <aside style={s.sidebar}>
-        <div style={s.sideTop}>
-          <div style={s.brand}>
-            <img src={logo} alt="StatKash" style={s.logoImg} />
-          </div>
-          {/* genero los botones del nav desde el array de arriba */}
-          <nav style={s.nav}>
-            {navItems.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => setActivePage(item.id)}
-                style={{
-                  ...s.navItem,
-                  // si este botón es el activo le aplico estilos extra
-                  ...(activePage === item.id ? s.navItemActive : {}),
-                }}
-              >
-                <span style={s.navIcon}>{item.icon}</span>
-                {item.label}
-              </button>
-            ))}
-          </nav>
-        </div>
 
-        {/* parte baja del sidebar con info del usuario y botón de salir */}
-        <div style={s.sideBottom}>
-          <div style={s.userBox}>
-            {/* uso la primera letra del nombre como avatar, es lo más simple */}
-            <div style={s.avatar}>{nombre?.[0]?.toUpperCase()}</div>
-            <div>
-              <p style={s.userName}>{nombre}</p>
-              <p style={s.userRole}>Usuario</p>
+      {/* modal de edición de gasto */}
+      {editGasto && (
+        <div style={s.modalOverlay}>
+          <div style={s.modal}>
+            <h3 style={{ color: "#f5c518", margin: "0 0 20px 0" }}>Editar gasto</h3>
+            <form onSubmit={guardarEdicion} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+              <select style={s.ticketInput} value={editGasto.categoria_id} onChange={e => setEditGasto({ ...editGasto, categoria_id: e.target.value })} required>
+                {categorias.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+              </select>
+              <input style={s.ticketInput} type="text" value={editGasto.motivo} onChange={e => setEditGasto({ ...editGasto, motivo: e.target.value })} required />
+              <input style={s.ticketInput} type="number" value={editGasto.monto} onChange={e => setEditGasto({ ...editGasto, monto: e.target.value })} required />
+              <input style={s.ticketInput} type="date" value={editGasto.fecha} onChange={e => setEditGasto({ ...editGasto, fecha: e.target.value })} required />
+              <div style={{ display: "flex", gap: "10px" }}>
+                <button style={s.ticketBtn} type="submit">Guardar</button>
+                <button style={{ ...s.ticketBtn, background: "#1a1a1a", color: "#888" }} type="button" onClick={() => setEditGasto(null)}>Cancelar</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* SIDEBAR — solo en desktop */}
+      {!isMobile && (
+        <aside style={s.sidebar}>
+          <div style={s.sideTop}>
+            <div style={s.brand}>
+              <img src={logo} alt="StatKash" style={s.logoImg} />
             </div>
+            <nav style={s.nav}>
+              {navItems.map((item) => (
+                <button key={item.id} onClick={() => setActivePage(item.id)}
+                  style={{ ...s.navItem, ...(activePage === item.id ? s.navItemActive : {}) }}>
+                  <span style={s.navIcon}>{item.icon}</span>
+                  {item.label}
+                </button>
+              ))}
+            </nav>
           </div>
-          <button onClick={logout} style={s.logoutBtn}>Cerrar sesión</button>
-        </div>
-      </aside>
+          <div style={s.sideBottom}>
+            <div style={s.userBox}>
+              <div style={s.avatar}>{nombre?.[0]?.toUpperCase()}</div>
+              <div>
+                <p style={s.userName}>{nombre}</p>
+                <p style={s.userRole}>Usuario</p>
+              </div>
+            </div>
+            <button onClick={logout} style={s.logoutBtn}>Cerrar sesión</button>
+          </div>
+        </aside>
+      )}
 
-      {/* contenido principal a la derecha del sidebar */}
-      <main style={s.main}>
+      {/* TOPBAR — solo en mobile */}
+      {isMobile && (
+        <div style={s.mobileTopbar}>
+          <img src={logo} alt="StatKash" style={{ height: "32px" }} />
+          <div style={s.avatar}>{nombre?.[0]?.toUpperCase()}</div>
+        </div>
+      )}
+
+      {/* contenido principal */}
+      <main style={{ ...s.main, marginLeft: isMobile ? 0 : "248px", paddingBottom: isMobile ? "80px" : "32px" }}>
         {/* encabezado con título y todos los filtros */}
         <div style={s.header}>
           <div>
@@ -461,6 +539,16 @@ export default function Dashboard() {
         {/* --- TRANSACCIONES --- lista completa de todos los gastos */}
         {activePage === "gastos" && (
           <div style={s.tableCard}>
+            {/* barra de búsqueda y exportar */}
+            <div style={{ display: "flex", gap: "10px", marginBottom: "16px", flexWrap: "wrap" }}>
+              <input
+                style={{ ...s.ticketInput, flex: 1, minWidth: "200px" }}
+                placeholder="Buscar por motivo o categoría..."
+                value={busqueda}
+                onChange={e => setBusqueda(e.target.value)}
+              />
+              <button style={s.applyBtn} onClick={exportarCSV}>⬇ Exportar CSV</button>
+            </div>
             <table style={s.table}>
               <thead>
                 <tr>
@@ -470,19 +558,20 @@ export default function Dashboard() {
                 </tr>
               </thead>
               <tbody>
-                {gastos.map((g) => (
+                {gastosFiltrados.map((g) => (
                   <tr key={g.id} style={s.tr}>
                     <td style={s.td}><span style={s.badge}>{g.categoria}</span></td>
                     <td style={s.td}>{g.motivo}</td>
                     <td style={{ ...s.td, color: "#f5c518", fontWeight: "600" }}>${g.monto.toLocaleString("es-CO")}</td>
                     <td style={{ ...s.td, color: "#666" }}>{g.fecha}</td>
                     <td style={s.td}>
+                      <button onClick={() => setEditGasto({ ...g, categoria_id: categorias.find(c => c.nombre === g.categoria)?.id || "" })} style={{ ...s.delBtn, color: "#f5c518", marginRight: "8px" }}>✎</button>
                       <button onClick={() => eliminarGasto(g.id)} style={s.delBtn}>✕</button>
                     </td>
                   </tr>
                 ))}
-                {gastos.length === 0 && (
-                  <tr><td colSpan={5} style={{ ...s.td, textAlign: "center", color: "#444", padding: "32px" }}>Sin gastos registrados</td></tr>
+                {gastosFiltrados.length === 0 && (
+                  <tr><td colSpan={5} style={{ ...s.td, textAlign: "center", color: "#444", padding: "32px" }}>Sin resultados</td></tr>
                 )}
               </tbody>
             </table>
@@ -711,6 +800,23 @@ export default function Dashboard() {
                 Ingresa tu sueldo para ver tu análisis financiero
               </div>
             )}
+
+            {/* gestión de categorías */}
+            <div style={s.finCard}>
+              <h3 style={s.finTitle}>🏷️ Mis categorías</h3>
+              <form onSubmit={agregarCategoria} style={{ display: "flex", gap: "10px", marginBottom: "16px" }}>
+                <input style={{ ...s.ticketInput, flex: 1 }} placeholder="Nueva categoría..." value={nuevaCategoria} onChange={e => setNuevaCategoria(e.target.value)} />
+                <button style={s.applyBtn} type="submit">Agregar</button>
+              </form>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+                {categorias.map(c => (
+                  <div key={c.id} style={{ display: "flex", alignItems: "center", gap: "6px", background: "rgba(245,197,24,0.08)", border: "1px solid rgba(245,197,24,0.15)", borderRadius: "20px", padding: "6px 14px" }}>
+                    <span style={{ color: "#c9a100", fontSize: "0.83rem" }}>{c.nombre}</span>
+                    <button onClick={() => eliminarCategoria(c.id)} style={{ background: "transparent", border: "none", color: "#444", cursor: "pointer", fontSize: "0.8rem", padding: "0 0 0 4px" }}>✕</button>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         )}
 
@@ -817,8 +923,35 @@ export default function Dashboard() {
         )}
 
       </main>
+
+      {/* NAV INFERIOR — solo en mobile */}
+      {isMobile && (
+        <nav style={s.mobileNav}>
+          {navItems.map(item => (
+            <button key={item.id} onClick={() => setActivePage(item.id)}
+              style={{ ...s.mobileNavItem, ...(activePage === item.id ? s.mobileNavActive : {}) }}>
+              <span style={{ fontSize: "1.2rem" }}>{item.icon}</span>
+              <span style={{ fontSize: "0.65rem" }}>{item.label.split(" ")[0]}</span>
+            </button>
+          ))}
+          <button onClick={logout} style={s.mobileNavItem}>
+            <span style={{ fontSize: "1.2rem" }}>⏻</span>
+            <span style={{ fontSize: "0.65rem" }}>Salir</span>
+          </button>
+        </nav>
+      )}
     </div>
   );
+}
+
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  useEffect(() => {
+    const fn = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", fn);
+    return () => window.removeEventListener("resize", fn);
+  }, []);
+  return isMobile;
 }
 
 function saludColor(salud) {
@@ -1168,4 +1301,12 @@ const s = {
   snowballBtn: { padding: "10px 18px", borderRadius: "10px", border: "none", background: "#1f1a00", color: "#f5c518", fontWeight: "700", cursor: "pointer", fontSize: "0.85rem" },
   snowballCard: { display: "flex", alignItems: "flex-start", gap: "16px", padding: "16px", background: "#1a1a1a", borderRadius: "12px", marginBottom: "10px", border: "1px solid #222" },
   snowballOrden: { width: "32px", height: "32px", borderRadius: "50%", background: "#f5c518", color: "#0d0d0d", fontWeight: "800", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
+  // modal edición
+  modalOverlay: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 },
+  modal: { background: "#111111", border: "1px solid rgba(245,197,24,0.15)", borderRadius: "16px", padding: "32px", width: "100%", maxWidth: "420px", boxShadow: "0 20px 60px rgba(0,0,0,0.6)" },
+  // mobile
+  mobileTopbar: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 20px", background: "#0e0e0e", borderBottom: "1px solid rgba(245,197,24,0.06)" },
+  mobileNav: { position: "fixed", bottom: 0, left: 0, right: 0, background: "#0e0e0e", borderTop: "1px solid rgba(245,197,24,0.08)", display: "flex", zIndex: 100 },
+  mobileNavItem: { flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "4px", padding: "10px 4px", border: "none", background: "transparent", color: "#444", cursor: "pointer" },
+  mobileNavActive: { color: "#f5c518" },
 };

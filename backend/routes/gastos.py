@@ -105,6 +105,29 @@ def crear_gasto():
 
     return jsonify({"message": "Gasto creado.", "id": new_id}), 201
 
+@gastos_bp.route("/gastos/<int:gasto_id>", methods=["PUT"])
+def editar_gasto(gasto_id):
+    user_id = get_user_id(request)
+    if not user_id:
+        return jsonify({"error": "No autorizado."}), 401
+    data = request.get_json()
+    categoria_id = data.get("categoria_id")
+    motivo = data.get("motivo")
+    monto = data.get("monto")
+    fecha = data.get("fecha")
+    if not all([categoria_id, motivo, monto, fecha]):
+        return jsonify({"error": "Faltan campos."}), 400
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("""
+        UPDATE gastos SET categoria_id=%s, motivo=%s, monto=%s, fecha=%s
+        WHERE id=%s AND usuario_id=%s;
+    """, (categoria_id, motivo, monto, fecha, gasto_id, user_id))
+    conn.commit()
+    cur.close()
+    conn.close()
+    return jsonify({"message": "Gasto actualizado."})
+
 @gastos_bp.route("/gastos/<int:gasto_id>", methods=["DELETE"])
 def eliminar_gasto(gasto_id):
     user_id = get_user_id(request)
