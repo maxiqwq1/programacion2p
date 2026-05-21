@@ -9,6 +9,7 @@ import API from "../api";
 import logo from "../assets/logo.png";
 import Toast from "../components/Toast";
 import { SkeletonCard, SkeletonRow, SkeletonChart } from "../components/Skeleton";
+import { jsPDF } from "jspdf";
 
 // usé tonos de amarillo/dorado para que todas las gráficas combinen con el tema
 const COLORS = ["#f5c518","#e6a800","#ffd84d","#b38f00","#ffe680","#cc9900","#ffed99","#a37700","#ffc200","#d4a800","#f0b800"];
@@ -173,6 +174,145 @@ export default function Dashboard() {
     } catch {
       setToast({ message: "No puedes eliminar una categoría con gastos.", type: "error" });
     }
+  }
+
+  function exportarPDF() {
+    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+    const gold = [212, 168, 0];
+    const white = [240, 240, 240];
+    const gray = [120, 120, 120];
+    const red = [248, 113, 113];
+    const green = [74, 222, 128];
+    const W = 210;
+    let y = 18;
+
+    const line = (color = [40,40,40]) => {
+      doc.setDrawColor(...color);
+      doc.setLineWidth(0.3);
+      doc.line(15, y, W - 15, y);
+      y += 5;
+    };
+
+    const title = (text, size = 13, color = gold) => {
+      doc.setFontSize(size); doc.setTextColor(...color); doc.setFont("helvetica", "bold");
+      doc.text(text, 15, y); y += size * 0.5 + 2;
+    };
+
+    const text = (text, size = 9, color = white, x = 15) => {
+      doc.setFontSize(size); doc.setTextColor(...color); doc.setFont("helvetica", "normal");
+      doc.text(String(text), x, y); y += size * 0.45 + 1.5;
+    };
+
+    const bold = (t, size = 9, color = white, x = 15) => {
+      doc.setFontSize(size); doc.setTextColor(...color); doc.setFont("helvetica", "bold");
+      doc.text(String(t), x, y); y += size * 0.45 + 1.5;
+    };
+
+    const newPage = () => { doc.addPage(); y = 18; };
+    const checkPage = (needed = 20) => { if (y + needed > 280) newPage(); };
+
+    // fondo negro
+    doc.setFillColor(8, 8, 8);
+    doc.rect(0, 0, W, 297, "F");
+
+    // encabezado
+    doc.setFillColor(14, 14, 14);
+    doc.rect(0, 0, W, 28, "F");
+    title("StatKash — Reporte Financiero Personal", 14, gold);
+    text(`Generado el ${new Date().toLocaleDateString("es-CO", { day: "2-digit", month: "long", year: "numeric" })} · Usuario: ${nombre}`, 8, gray);
+    y += 4; line(gold);
+
+    // resumen financiero
+    if (finanzas && finanzas.sueldo > 0) {
+      title("Resumen Financiero del Mes", 12);
+      const saludMap = { excelente: "Excelente ✓", buena: "Buena", ajustada: "Ajustada ⚠", deficit: "Déficit ✗" };
+      const colorMap = { excelente: green, buena: gold, ajustada: [251,146,60], deficit: red };
+      bold(`Salud financiera: ${saludMap[finanzas.salud] || ""}`, 10, colorMap[finanzas.salud] || white);
+      text(`Sueldo mensual:       $${finanzas.sueldo.toLocaleString("es-CO")}`);
+      text(`Gastos este mes:      $${finanzas.gastos_mes.toLocaleString("es-CO")}`);
+      text(`Pagos de deudas:      $${finanzas.total_deuda_mensual.toLocaleString("es-CO")}`);
+      const colorAhorro = finanzas.ahorro >= 0 ? green : red;
+      bold(`Ahorro neto:          $${finanzas.ahorro.toLocaleString("es-CO")} (${finanzas.tasa_ahorro}%)`, 9, colorAhorro);
+      y += 3; line();
+    }
+
+    // plan de acción
+    if (finanzas && finanzas.sueldo > 0) {
+      title("Plan de Acción Recomendado", 12);
+      const metaAhorro20 = finanzas.sueldo * 0.20;
+      const metaAhorro10 = finanzas.sueldo * 0.10;
+      if (finanzas.salud === "deficit") {
+        bold("⚠ Estás en déficit", 9, red);
+        text(`Gastas $${Math.abs(finanzas.ahorro).toLocaleString("es-CO")} más de lo que ganas.`);
+        text(`Necesitas reducir $${(finanzas.gastos_mes - finanzas.sueldo * 0.80).toLocaleString("es-CO")} en gastos.`);
+        text(`Meta: máximo 80% del sueldo en gastos ($${(finanzas.sueldo * 0.80).toLocaleString("es-CO")}).`);
+        if (finanzas.por_categoria[0]) {
+          text(`Mayor gasto: ${finanzas.por_categoria[0].categoria} ($${finanzas.por_categoria[0].total.toLocaleString("es-CO")})`);
+          text(`  Reducirlo 30% = ahorro de $${(finanzas.por_categoria[0].total * 0.30).toLocaleString("es-CO")}/mes.`);
+        }
+        text(`Regla 50/30/20: necesidades $${(finanzas.sueldo*0.50).toLocaleString("es-CO")} · gustos $${(finanzas.sueldo*0.30).toLocaleString("es-CO")} · ahorro $${metaAhorro20.toLocaleString("es-CO")}.`);
+      } else if (finanzas.salud === "ajustada") {
+        bold("⚠ Finanzas ajustadas", 9, [251,146,60]);
+        text(`Ahorras $${finanzas.ahorro.toLocaleString("es-CO")}/mes (${finanzas.tasa_ahorro}%). Meta mínima: 10% = $${metaAhorro10.toLocaleString("es-CO")}.`);
+        text(`Reduce $${(metaAhorro10 - finanzas.ahorro).toLocaleString("es-CO")} en gastos para alcanzar esa meta.`);
+      } else if (finanzas.salud === "buena") {
+        bold("✓ Vas bien — apunta al 20%", 9, gold);
+        text(`Ahorras $${finanzas.ahorro.toLocaleString("es-CO")}/mes. En 12 meses acumularías $${(finanzas.ahorro*12).toLocaleString("es-CO")}.`);
+        text(`Considera invertir el excedente en fondos o CDT.`);
+      } else if (finanzas.salud === "excelente") {
+        bold("✓ Excelente control financiero", 9, green);
+        text(`Ahorras el ${finanzas.tasa_ahorro}% de tu sueldo. En un año: $${(finanzas.ahorro*12).toLocaleString("es-CO")}.`);
+        text(`Invierte $${(finanzas.ahorro*0.70).toLocaleString("es-CO")} y mantén $${(finanzas.ahorro*0.30).toLocaleString("es-CO")} como fondo de emergencia.`);
+      }
+      y += 3; line();
+    }
+
+    // plan bola de nieve
+    if (snowball && snowball.deudas.length > 0) {
+      checkPage(30);
+      title("Plan Bola de Nieve — Deudas", 12);
+      text(`Dinero extra disponible: $${snowball.dinero_extra.toLocaleString("es-CO")}/mes`, 9, gold);
+      text(`Tiempo total para quedar libre de deudas: ${snowball.meses_total >= 600 ? "No viable con ingresos actuales" : `${snowball.meses_total} meses (${(snowball.meses_total/12).toFixed(1)} años)`}`, 9, snowball.meses_total >= 600 ? red : green);
+      y += 2;
+      snowball.deudas.forEach((d, i) => {
+        checkPage(18);
+        bold(`${d.orden}. ${d.nombre}`, 9, gold);
+        text(`   Saldo: $${d.monto_original.toLocaleString("es-CO")}  ·  Pago/mes con snowball: $${d.pago_mensual.toLocaleString("es-CO")}  ·  Meses: ${d.meses >= 600 ? "∞" : d.meses}  ·  Interés total: $${d.interes_total.toLocaleString("es-CO")}`);
+      });
+      y += 3; line();
+    }
+
+    // gastos del período
+    checkPage(20);
+    title(`Transacciones (${gastosFiltrados.length} registros)`, 12);
+    const headers = ["Categoría", "Motivo", "Monto", "Fecha"];
+    const colX = [15, 60, 130, 165];
+    doc.setFontSize(8); doc.setTextColor(...gray); doc.setFont("helvetica", "bold");
+    headers.forEach((h, i) => doc.text(h, colX[i], y)); y += 5;
+    line([30,30,30]);
+
+    gastosFiltrados.slice(0, 80).forEach((g) => {
+      checkPage(7);
+      doc.setFontSize(8); doc.setFont("helvetica", "normal");
+      doc.setTextColor(...white); doc.text(g.categoria, colX[0], y);
+      doc.text(g.motivo.slice(0, 28), colX[1], y);
+      doc.setTextColor(...gold); doc.text(`$${g.monto.toLocaleString("es-CO")}`, colX[2], y);
+      doc.setTextColor(...gray); doc.text(g.fecha, colX[3], y);
+      y += 5;
+    });
+
+    // pie de página
+    const pages = doc.getNumberOfPages();
+    for (let i = 1; i <= pages; i++) {
+      doc.setPage(i);
+      doc.setFillColor(8,8,8);
+      doc.rect(0, 288, W, 10, "F");
+      doc.setFontSize(7); doc.setTextColor(...gray);
+      doc.text("StatKash — Reporte confidencial generado automáticamente", 15, 294);
+      doc.text(`Pág. ${i} / ${pages}`, W - 25, 294);
+    }
+
+    doc.save(`StatKash_Reporte_${new Date().toISOString().split("T")[0]}.pdf`);
   }
 
   function exportarCSV() {
@@ -573,7 +713,8 @@ export default function Dashboard() {
                 value={busqueda}
                 onChange={e => setBusqueda(e.target.value)}
               />
-              <button style={s.applyBtn} onClick={exportarCSV}>⬇ Exportar CSV</button>
+              <button style={s.applyBtn} onClick={exportarCSV}>⬇ CSV</button>
+              <button style={{ ...s.applyBtn, background: "linear-gradient(135deg,#a855f7 0%,#7c3aed 100%)", boxShadow: "0 4px 14px rgba(168,85,247,0.3)" }} onClick={exportarPDF}>⬇ PDF</button>
             </div>
             <table style={s.table}>
               <thead>
