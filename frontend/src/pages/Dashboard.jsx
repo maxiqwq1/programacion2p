@@ -8,6 +8,7 @@ import {
 import API from "../api";
 import logo from "../assets/logo.png";
 import Toast from "../components/Toast";
+import { SkeletonCard, SkeletonRow, SkeletonChart } from "../components/Skeleton";
 
 // usé tonos de amarillo/dorado para que todas las gráficas combinen con el tema
 const COLORS = ["#f5c518","#e6a800","#ffd84d","#b38f00","#ffe680","#cc9900","#ffed99","#a37700","#ffc200","#d4a800","#f0b800"];
@@ -31,6 +32,7 @@ export default function Dashboard() {
   const [busqueda, setBusqueda] = useState("");
   const [nuevaCategoria, setNuevaCategoria] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [cargando, setCargando] = useState(true);
   const isMobile = useIsMobile();
   // esto controla cuál sección del sidebar está activa
   const [activePage, setActivePage] = useState("overview");
@@ -47,11 +49,13 @@ export default function Dashboard() {
   const nombre = localStorage.getItem("nombre");
 
   useEffect(() => {
-    cargarCategorias();
-    aplicarFiltros();
-    cargarAnalisis();
-    cargarFinanzas();
-    cargarDeudas();
+    Promise.all([
+      cargarCategorias(),
+      aplicarFiltros(),
+      cargarAnalisis(),
+      cargarFinanzas(),
+      cargarDeudas(),
+    ]).finally(() => setCargando(false));
   }, []);
 
   async function cargarCategorias() {
@@ -360,8 +364,24 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* skeleton mientras carga la primera vez */}
+        {cargando && activePage === "overview" && (
+          <div>
+            <div style={s.statsGrid}>
+              {[1,2,3,4].map(i => <SkeletonCard key={i} />)}
+            </div>
+            <div style={s.chartsRow}>
+              <SkeletonChart />
+              <SkeletonChart />
+            </div>
+            <div style={s.tableCard}>
+              {[1,2,3,4,5].map(i => <SkeletonRow key={i} />)}
+            </div>
+          </div>
+        )}
+
         {/* --- VISTA GENERAL --- muestra todo de un vistazo */}
-        {activePage === "overview" && (
+        {!cargando && activePage === "overview" && (
           <div>
             {/* resumen de deudas si hay alguna */}
             {finanzas && finanzas.num_deudas > 0 && (
@@ -537,7 +557,13 @@ export default function Dashboard() {
         )}
 
         {/* --- TRANSACCIONES --- lista completa de todos los gastos */}
-        {activePage === "gastos" && (
+        {cargando && activePage === "gastos" && (
+          <div style={s.tableCard}>
+            {[1,2,3,4,5,6].map(i => <SkeletonRow key={i} />)}
+          </div>
+        )}
+
+        {!cargando && activePage === "gastos" && (
           <div style={s.tableCard}>
             {/* barra de búsqueda y exportar */}
             <div style={{ display: "flex", gap: "10px", marginBottom: "16px", flexWrap: "wrap" }}>
