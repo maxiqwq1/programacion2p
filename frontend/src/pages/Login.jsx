@@ -69,8 +69,10 @@ export default function Login() {
             ¿No tienes cuenta?{" "}
             <Link to="/register">Regístrate gratis</Link>
           </p>
-          <p style={s.footer}>
-            <Link to="/reset-password">¿Olvidaste tu contraseña?</Link>
+          <p style={{ textAlign: "center", marginTop: "12px" }}>
+            <Link to="/reset-password" style={{ color: "#666", fontSize: "0.85rem", textDecoration: "underline" }}>
+              ¿Olvidaste tu contraseña?
+            </Link>
           </p>
         </div>
       </div>

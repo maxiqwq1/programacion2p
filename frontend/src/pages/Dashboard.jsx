@@ -54,7 +54,7 @@ export default function Dashboard() {
     Promise.all([
       cargarCategorias(),
       fetchGastos("mensual", "", "", ""),
-      cargarAnalisis(),
+      cargarAnalisis("mensual", "", "", ""),
       cargarFinanzas(),
       cargarDeudas(),
     ]).finally(() => setCargando(false));
@@ -82,8 +82,10 @@ export default function Dashboard() {
     const _cat = cat !== undefined ? cat : filtroCategoria;
     const _fi  = fi  !== undefined ? fi  : fechaInicio;
     const _ff  = ff  !== undefined ? ff  : fechaFin;
-    await fetchGastos(_p, _cat, _fi, _ff);
-    await cargarAnalisis();
+    await Promise.all([
+      fetchGastos(_p, _cat, _fi, _ff),
+      cargarAnalisis(_p, _cat, _fi, _ff),
+    ]);
     setToast({ message: "Filtros aplicados.", type: "success" });
   }
 
@@ -132,6 +134,7 @@ export default function Dashboard() {
   }
 
   async function eliminarDeuda(id) {
+    if (!window.confirm("¿Eliminar esta deuda? Esta acción no se puede deshacer.")) return;
     await API.delete(`/deudas/${id}`);
     cargarDeudas();
     setSnowball(null);
@@ -201,12 +204,12 @@ export default function Dashboard() {
     const filtroActivo = [periodoLabel, catLabel, fechaLabel].filter(Boolean).join(" | ");
 
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-    const gold=[212,168,0], white=[220,220,220], gray=[110,110,110];
-    const red=[220,80,80], green=[60,180,100], orange=[220,130,50];
+    const gold=[160,110,0], white=[30,30,30], gray=[100,100,100];
+    const red=[180,40,40], green=[30,140,70], orange=[180,90,20];
     const W=210; let y=18;
     const newPage=()=>{ doc.addPage(); doc.setFillColor(8,8,8); doc.rect(0,0,W,297,"F"); y=18; };
     const checkPage=(n=20)=>{ if(y+n>280) newPage(); };
-    const line=(color=[35,35,35])=>{ doc.setDrawColor(...color); doc.setLineWidth(0.3); doc.line(15,y,W-15,y); y+=5; };
+    const line=(color=[200,200,200])=>{ doc.setDrawColor(...color); doc.setLineWidth(0.3); doc.line(15,y,W-15,y); y+=5; };
     const ttl=(t,size=13,color=gold)=>{ doc.setFontSize(size); doc.setTextColor(...color); doc.setFont("helvetica","bold"); doc.text(t,15,y); y+=size*0.5+3; };
     const rw=(t,size=9,color=white,x=15)=>{ doc.setFontSize(size); doc.setTextColor(...color); doc.setFont("helvetica","normal"); const ls=doc.splitTextToSize(String(t),W-x-15); doc.text(ls,x,y); y+=(size*0.45+1.5)*ls.length; };
     const bld=(t,size=9,color=white,x=15)=>{ doc.setFontSize(size); doc.setTextColor(...color); doc.setFont("helvetica","bold"); doc.text(String(t),x,y); y+=size*0.45+1.5; };
@@ -305,8 +308,14 @@ export default function Dashboard() {
     g.categoria.toLowerCase().includes(busqueda.toLowerCase())
   );
 
-  async function cargarAnalisis() {
-    const res = await API.get("/analisis");
+  async function cargarAnalisis(p, cat, fi, ff) {
+    const params = new URLSearchParams();
+    if (p)   params.append("periodo", p);
+    if (cat) params.append("categoria_id", cat);
+    if (fi)  params.append("fecha_inicio", fi);
+    if (ff)  params.append("fecha_fin", ff);
+    const query = params.toString();
+    const res = await API.get(`/analisis${query ? "?" + query : ""}`);
     setAnalisis(res.data);
   }
 
@@ -328,10 +337,11 @@ export default function Dashboard() {
   }
 
   async function eliminarGasto(id) {
+    if (!window.confirm("¿Eliminar este gasto? Esta acción no se puede deshacer.")) return;
     await API.delete(`/gastos/${id}`);
     await Promise.all([
       fetchGastos(periodo, filtroCategoria, fechaInicio, fechaFin),
-      cargarAnalisis(),
+      cargarAnalisis(periodo, filtroCategoria, fechaInicio, fechaFin),
       cargarFinanzas(),
     ]);
     setToast({ message: "Gasto eliminado.", type: "error" });
@@ -465,10 +475,14 @@ export default function Dashboard() {
             {(fechaInicio || fechaFin || filtroCategoria || periodo) && (
               <button
                 style={s.clearBtn}
-                onClick={() => {
+                onClick={async () => {
                   setPeriodo(""); setFiltroCategoria("");
                   setFechaInicio(""); setFechaFin("");
-                  aplicarFiltros("", "", "", "");
+                  await Promise.all([
+                    fetchGastos("", "", "", ""),
+                    cargarAnalisis("", "", "", ""),
+                  ]);
+                  setToast({ message: "Filtros limpiados.", type: "success" });
                 }}
               >
                 ✕ Limpiar
