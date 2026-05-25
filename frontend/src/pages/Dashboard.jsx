@@ -1,5 +1,5 @@
 // v4
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip,
@@ -47,6 +47,9 @@ export default function Dashboard() {
     fecha: new Date().toISOString().split("T")[0],
   });
   const [formErrors, setFormErrors] = useState({});
+  const [exportando, setExportando] = useState(null); // null | "csv" | "pdf"
+  const [mostrarSpinner, setMostrarSpinner] = useState(false);
+  const exportTimerRef = useRef(null);
   const navigate = useNavigate();
   const nombre = localStorage.getItem("nombre");
 
@@ -180,6 +183,18 @@ export default function Dashboard() {
       setToast({ message: "Categoría eliminada.", type: "success" });
     } catch {
       setToast({ message: "No puedes eliminar una categoría con gastos.", type: "error" });
+    }
+  }
+
+  async function runExport(tipo, fn) {
+    setExportando(tipo);
+    exportTimerRef.current = setTimeout(() => setMostrarSpinner(true), 1000);
+    try {
+      await fn();
+    } finally {
+      clearTimeout(exportTimerRef.current);
+      setExportando(null);
+      setMostrarSpinner(false);
     }
   }
 
@@ -378,6 +393,28 @@ export default function Dashboard() {
   return (
     <div style={{ ...s.shell, flexDirection: isMobile ? "column" : "row" }}>
       {toast && <Toast message={toast.message} type={toast.type} onClose={closeToast} />}
+
+      {mostrarSpinner && (
+        <div style={s.exportOverlay}>
+          <style>{`
+            @keyframes spin { to { transform: rotate(360deg); } }
+            @keyframes indeterminate {
+              0%   { left: -40%; width: 40%; }
+              60%  { left: 100%; width: 40%; }
+              100% { left: 100%; width: 40%; }
+            }
+          `}</style>
+          <div style={s.exportBar}>
+            <div style={s.exportBarFill} />
+          </div>
+          <div style={s.exportModal}>
+            <div style={s.exportSpinner} />
+            <p style={{ color: "#f5c518", fontSize: "0.9rem", margin: 0 }}>
+              {exportando === "pdf" ? "Generando PDF…" : "Exportando CSV…"}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* modal de edición de gasto */}
       {editGasto && (
@@ -716,8 +753,12 @@ export default function Dashboard() {
                 value={busqueda}
                 onChange={e => setBusqueda(e.target.value)}
               />
-              <button style={s.applyBtn} onClick={exportarCSV}>⬇ CSV</button>
-              <button style={{ ...s.applyBtn, background: "linear-gradient(135deg,#a855f7 0%,#7c3aed 100%)", boxShadow: "0 4px 14px rgba(168,85,247,0.3)" }} onClick={exportarPDF}>⬇ PDF</button>
+              <button style={{ ...s.applyBtn, opacity: exportando ? 0.6 : 1 }} disabled={!!exportando} onClick={() => runExport("csv", exportarCSV)}>
+                {exportando === "csv" ? <span style={s.btnSpinner} /> : "⬇ CSV"}
+              </button>
+              <button style={{ ...s.applyBtn, background: "linear-gradient(135deg,#a855f7 0%,#7c3aed 100%)", boxShadow: "0 4px 14px rgba(168,85,247,0.3)", opacity: exportando ? 0.6 : 1 }} disabled={!!exportando} onClick={() => runExport("pdf", exportarPDF)}>
+                {exportando === "pdf" ? <span style={s.btnSpinner} /> : "⬇ PDF"}
+              </button>
             </div>
             <table style={s.table}>
               <thead>
@@ -1441,6 +1482,38 @@ const s = {
     boxShadow: "0 6px 20px rgba(245,197,24,0.3)",
   },
   fieldError: { color: "#f87171", fontSize: "0.75rem", margin: "4px 0 0 0" },
+
+  exportOverlay: {
+    position: "fixed", inset: 0, zIndex: 1000,
+    display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+    background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)",
+  },
+  exportBar: {
+    position: "fixed", top: 0, left: 0, right: 0, height: "3px",
+    background: "rgba(245,197,24,0.15)", overflow: "hidden",
+  },
+  exportBarFill: {
+    position: "absolute", height: "100%",
+    background: "linear-gradient(90deg,#f5c518,#d4a800)",
+    animation: "indeterminate 1.5s ease-in-out infinite",
+  },
+  exportModal: {
+    display: "flex", flexDirection: "column", alignItems: "center", gap: "20px",
+    background: "#111", border: "1px solid rgba(245,197,24,0.2)",
+    borderRadius: "20px", padding: "40px 52px",
+    boxShadow: "0 20px 60px rgba(0,0,0,0.7)",
+  },
+  exportSpinner: {
+    width: "52px", height: "52px", borderRadius: "50%",
+    border: "4px solid rgba(245,197,24,0.15)",
+    borderTop: "4px solid #f5c518",
+    animation: "spin 0.8s linear infinite",
+  },
+  btnSpinner: {
+    display: "inline-block", width: "16px", height: "16px", borderRadius: "50%",
+    border: "2px solid rgba(0,0,0,0.3)", borderTop: "2px solid #0a0a0a",
+    animation: "spin 0.8s linear infinite", verticalAlign: "middle",
+  },
 
   // barras de progreso
   barWrap: { display: "flex", alignItems: "center", gap: "10px" },
