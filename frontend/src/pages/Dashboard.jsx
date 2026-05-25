@@ -188,14 +188,15 @@ export default function Dashboard() {
 
   async function runExport(tipo, fn) {
     setExportando(tipo);
-    exportTimerRef.current = setTimeout(() => setMostrarSpinner(true), 1000);
-    try {
-      await fn();
-    } finally {
-      clearTimeout(exportTimerRef.current);
-      setExportando(null);
-      setMostrarSpinner(false);
-    }
+    setMostrarSpinner(true);
+    // para CSV (muy rápido) mantenemos el spinner al menos 800ms para que sea visible
+    const [result] = await Promise.allSettled([
+      fn(),
+      new Promise(r => setTimeout(r, tipo === "csv" ? 800 : 0)),
+    ]);
+    setExportando(null);
+    setMostrarSpinner(false);
+    if (result.status === "rejected") throw result.reason;
   }
 
   async function exportarPDF() {
