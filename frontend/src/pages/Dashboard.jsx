@@ -772,10 +772,8 @@ export default function Dashboard() {
                 <div style={s.ticketDivider} />
 
                 <div style={s.formGroup}>
-                  <label style={{ ...s.ticketFieldLabel, ...(formErrors.categoria_id ? { color: "#f87171" } : {}) }}>
-                    Categoría{formErrors.categoria_id && <span style={s.fieldError}> — {formErrors.categoria_id}</span>}
-                  </label>
-                  <div style={{ ...s.chipsWrap, ...(formErrors.categoria_id ? { padding: "8px", borderRadius: "10px", border: "1px solid rgba(248,113,113,0.4)" } : {}) }}>
+                  <label style={s.ticketFieldLabel}>Categoría</label>
+                  <div style={{ ...s.chipsWrap, ...(formErrors.categoria_id ? { padding: "10px", borderRadius: "12px", border: "1.5px solid #f87171", background: "rgba(248,113,113,0.05)" } : {}) }}>
                     {categorias.map((c) => (
                       <button key={c.id} type="button"
                         onClick={() => { setForm({ ...form, categoria_id: String(c.id) }); setFormErrors(p => ({ ...p, categoria_id: "" })); }}
@@ -784,6 +782,11 @@ export default function Dashboard() {
                       </button>
                     ))}
                   </div>
+                  {formErrors.categoria_id && (
+                    <p style={{ color: "#f87171", fontSize: "0.82rem", margin: "6px 0 0 2px", display: "flex", alignItems: "center", gap: "5px" }}>
+                      <span style={{ fontSize: "1rem" }}>⚠</span> {formErrors.categoria_id}
+                    </p>
+                  )}
                 </div>
 
                 <div style={s.ticketDivider} />
