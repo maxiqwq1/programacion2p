@@ -46,6 +46,7 @@ export default function Dashboard() {
     // fecha de hoy por defecto para no tener que escribirla siempre
     fecha: new Date().toISOString().split("T")[0],
   });
+  const [formErrors, setFormErrors] = useState({});
   const navigate = useNavigate();
   const nombre = localStorage.getItem("nombre");
 
@@ -321,12 +322,25 @@ export default function Dashboard() {
 
   async function handleSubmit(e) {
     e.preventDefault();
+    const errors = {};
+    if (!form.categoria_id)                  errors.categoria_id = "Selecciona una categoría.";
+    if (!form.monto || Number(form.monto) <= 0) errors.monto = "Ingresa un monto mayor a 0.";
+    if (!form.motivo.trim())                 errors.motivo = "Describe en qué gastaste.";
+    if (!form.fecha)                         errors.fecha = "Selecciona una fecha.";
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      setToast({ message: "Completa los campos marcados en rojo.", type: "error" });
+      return;
+    }
+    setFormErrors({});
     await API.post("/gastos", {
       ...form,
       categoria_id: Number(form.categoria_id),
       monto: Number(form.monto),
     });
     setForm({ categoria_id: "", motivo: "", monto: "", fecha: new Date().toISOString().split("T")[0] });
+    setFormErrors({});
     await Promise.all([
       fetchGastos(periodo, filtroCategoria, fechaInicio, fechaFin),
       cargarAnalisis(),
@@ -742,27 +756,29 @@ export default function Dashboard() {
               {/* formulario de gasto */}
               <form onSubmit={handleSubmit} style={s.ticket}>
                 <div style={s.ticketHeader}>
-                  <span style={s.ticketIcon}>＄</span>
-                  <div>
+                  <span style={{ ...s.ticketIcon, ...(formErrors.monto ? { boxShadow: "0 0 0 2px #f87171" } : {}) }}>＄</span>
+                  <div style={{ flex: 1 }}>
                     <p style={s.ticketLabel}>¿Cuánto gastaste?</p>
                     <input
                       style={s.montoGrande}
                       type="number" min="0" placeholder="0"
                       value={form.monto}
-                      onChange={(e) => setForm({ ...form, monto: e.target.value })}
-                      required
+                      onChange={(e) => { setForm({ ...form, monto: e.target.value }); setFormErrors(p => ({ ...p, monto: "" })); }}
                     />
+                    {formErrors.monto && <p style={s.fieldError}>{formErrors.monto}</p>}
                   </div>
                 </div>
 
                 <div style={s.ticketDivider} />
 
                 <div style={s.formGroup}>
-                  <label style={s.ticketFieldLabel}>Categoría</label>
-                  <div style={s.chipsWrap}>
+                  <label style={{ ...s.ticketFieldLabel, ...(formErrors.categoria_id ? { color: "#f87171" } : {}) }}>
+                    Categoría{formErrors.categoria_id && <span style={s.fieldError}> — {formErrors.categoria_id}</span>}
+                  </label>
+                  <div style={{ ...s.chipsWrap, ...(formErrors.categoria_id ? { padding: "8px", borderRadius: "10px", border: "1px solid rgba(248,113,113,0.4)" } : {}) }}>
                     {categorias.map((c) => (
                       <button key={c.id} type="button"
-                        onClick={() => setForm({ ...form, categoria_id: String(c.id) })}
+                        onClick={() => { setForm({ ...form, categoria_id: String(c.id) }); setFormErrors(p => ({ ...p, categoria_id: "" })); }}
                         style={{ ...s.chip, ...(form.categoria_id === String(c.id) ? s.chipActive : {}) }}>
                         {c.nombre}
                       </button>
@@ -774,14 +790,24 @@ export default function Dashboard() {
 
                 <div style={s.formGroup}>
                   <label style={s.ticketFieldLabel}>¿En qué gastaste?</label>
-                  <input style={s.ticketInput} type="text" placeholder="Ej: Mercado, Netflix, Gasolina..."
-                    value={form.motivo} onChange={(e) => setForm({ ...form, motivo: e.target.value })} required />
+                  <input
+                    style={{ ...s.ticketInput, ...(formErrors.motivo ? { borderColor: "rgba(248,113,113,0.6)" } : {}) }}
+                    type="text" placeholder="Ej: Mercado, Netflix, Gasolina..."
+                    value={form.motivo}
+                    onChange={(e) => { setForm({ ...form, motivo: e.target.value }); setFormErrors(p => ({ ...p, motivo: "" })); }}
+                  />
+                  {formErrors.motivo && <p style={s.fieldError}>{formErrors.motivo}</p>}
                 </div>
 
                 <div style={s.formGroup}>
                   <label style={s.ticketFieldLabel}>Fecha</label>
-                  <input style={s.ticketInput} type="date"
-                    value={form.fecha} onChange={(e) => setForm({ ...form, fecha: e.target.value })} required />
+                  <input
+                    style={{ ...s.ticketInput, ...(formErrors.fecha ? { borderColor: "rgba(248,113,113,0.6)" } : {}) }}
+                    type="date"
+                    value={form.fecha}
+                    onChange={(e) => { setForm({ ...form, fecha: e.target.value }); setFormErrors(p => ({ ...p, fecha: "" })); }}
+                  />
+                  {formErrors.fecha && <p style={s.fieldError}>{formErrors.fecha}</p>}
                 </div>
 
                 <div style={s.ticketDivider} />
@@ -1411,6 +1437,7 @@ const s = {
     cursor: "pointer", letterSpacing: "0.3px",
     boxShadow: "0 6px 20px rgba(245,197,24,0.3)",
   },
+  fieldError: { color: "#f87171", fontSize: "0.75rem", margin: "4px 0 0 0" },
 
   // barras de progreso
   barWrap: { display: "flex", alignItems: "center", gap: "10px" },
