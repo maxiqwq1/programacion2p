@@ -1,16 +1,20 @@
-from flask import Flask, request, Response
+from flask import Flask, request, Response, jsonify
 from routes.auth import auth_bp
 from routes.gastos import gastos_bp
 from routes.categorias import categorias_bp
 from routes.analisis import analisis_bp
 from routes.finanzas import finanzas_bp
+from utils.errors import AppError
 import os
 
 app = Flask(__name__)
 
+
+# ── CORS ─────────────────────────────────────────────────────────────────────
+
 @app.after_request
 def add_cors(response):
-    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Origin"]  = "*"
     response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
     response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
     return response
@@ -19,20 +23,32 @@ def add_cors(response):
 def handle_options():
     if request.method == "OPTIONS":
         res = Response(status=200)
-        res.headers["Access-Control-Allow-Origin"] = "*"
+        res.headers["Access-Control-Allow-Origin"]  = "*"
         res.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
         res.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
         return res
 
-app.register_blueprint(auth_bp, url_prefix="/api")
-app.register_blueprint(gastos_bp, url_prefix="/api")
+
+# ── Error handler ─────────────────────────────────────────────────────────────
+
+@app.errorhandler(AppError)
+def handle_app_error(e):
+    return jsonify({"error": e.message}), e.status_code
+
+
+# ── Blueprints ────────────────────────────────────────────────────────────────
+
+app.register_blueprint(auth_bp,       url_prefix="/api")
+app.register_blueprint(gastos_bp,     url_prefix="/api")
 app.register_blueprint(categorias_bp, url_prefix="/api")
-app.register_blueprint(analisis_bp, url_prefix="/api")
-app.register_blueprint(finanzas_bp, url_prefix="/api")
+app.register_blueprint(analisis_bp,   url_prefix="/api")
+app.register_blueprint(finanzas_bp,   url_prefix="/api")
+
 
 @app.route("/api/health", methods=["GET"])
 def health():
     return {"status": "ok", "app": "StatKash"}
+
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
