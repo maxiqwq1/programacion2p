@@ -219,34 +219,48 @@ graph TD
     User((Usuario)):::user
 
     subgraph Frontend["Frontend — React + Vite"]
-        Login["Login / Registro"]:::frontend
-        Dashboard["Dashboard"]:::frontend
-        Analisis["Análisis"]:::frontend
-        Deudas["Deudas & Snowball"]:::frontend
-        Export["Exportar CSV / PDF"]:::frontend
+        Login["🔐 Login / Registro"]:::frontend
+
+        subgraph Vistas["Vistas principales"]
+            VistaGeneral["📊 Vista General\nresumen gastos + deudas activas\ngráficas + exportar CSV/PDF"]:::frontend
+            Transacciones["📋 Transacciones\nCRUD de gastos + filtros"]:::frontend
+            MisFinanzas["💼 Mis Finanzas\nsueldo · salud financiera\nahorro mensual"]:::frontend
+            DeudasUI["💳 Deudas\ngestión de deudas\nbola de nieve · proyección 5 años"]:::frontend
+        end
     end
 
-    subgraph Backend["Backend — Flask API"]
-        Auth["auth.py — JWT + bcrypt"]:::backend
-        Gastos["gastos.py — CRUD"]:::backend
-        Finanzas["finanzas.py — Sueldo, deudas, proyección"]:::backend
-        AnalisisB["analisis.py — Estadísticas pandas"]:::backend
+    subgraph Backend["Backend — Flask API  /api"]
+        Auth["auth.py\nregistro · login\nreset password"]:::backend
+        GastosB["gastos.py\nCRUD gastos\nfiltros dinámicos"]:::backend
+        AnalisisB["analisis.py\nestadísticas pandas\ntotal · promedio · máx · mín"]:::backend
+        FinanzasB["finanzas.py\nsueldo · CRUD deudas\nsnowball · proyección\nsalud financiera"]:::backend
+        CatB["categorias.py\ngestión de categorías"]:::backend
     end
 
     DB[("PostgreSQL\nusuarios · gastos\ncategorias · deudas")]:::db
 
     User -->|credenciales| Login
-    Login -->|POST /api/login| Auth
-    Auth -->|JWT| Login
-    Login -->|token guardado| Dashboard
-    Dashboard -->|GET /api/gastos| Gastos
-    Dashboard -->|GET /api/finanzas| Finanzas
-    Analisis -->|GET /api/analisis| AnalisisB
-    Deudas -->|GET /api/snowball| Finanzas
-    Deudas -->|GET /api/proyeccion| Finanzas
-    Gastos -->|SQL| DB
-    Finanzas -->|SQL| DB
+    Login -->|POST /login| Auth
+    Auth -->|JWT 8h| Login
+    Login --> VistaGeneral
+
+    VistaGeneral -->|GET /analisis| AnalisisB
+    VistaGeneral -->|GET /finanzas\nGET /deudas| FinanzasB
+    VistaGeneral -->|GET /gastos| GastosB
+
+    Transacciones -->|CRUD /gastos| GastosB
+    Transacciones -->|GET /categorias| CatB
+
+    MisFinanzas -->|GET·PUT /sueldo\nGET /finanzas| FinanzasB
+
+    DeudasUI -->|CRUD /deudas| FinanzasB
+    DeudasUI -->|GET /snowball| FinanzasB
+    DeudasUI -->|GET /proyeccion| FinanzasB
+
+    GastosB -->|SQL| DB
     AnalisisB -->|SQL| DB
+    FinanzasB -->|SQL| DB
+    CatB -->|SQL| DB
     Auth -->|SQL| DB
 ```
 
