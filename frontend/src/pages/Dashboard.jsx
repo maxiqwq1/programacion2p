@@ -678,7 +678,7 @@ export default function Dashboard() {
             )}
 
             {deudas.length > 0 && (
-              <div style={{ ...s.chartCard, marginBottom: "24px" }}>
+              <div style={{ ...s.chartCard, marginBottom: "24px", cursor: "pointer" }} onClick={() => setActivePage("deudas")}>
                 <h3 style={s.chartTitle}>Saldo por deuda <span style={{ color: "#444", fontSize: "0.75rem", fontWeight: "400" }}>— pago mínimo mensual</span></h3>
                 <ResponsiveContainer width="100%" height={220}>
                   <BarChart data={deudas} barSize={52} barCategoryGap="40%">
