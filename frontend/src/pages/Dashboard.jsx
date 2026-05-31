@@ -677,6 +677,25 @@ export default function Dashboard() {
               </div>
             )}
 
+            {deudas.length > 0 && (
+              <div style={{ ...s.chartCard, marginBottom: "24px" }}>
+                <h3 style={s.chartTitle}>Saldo por deuda <span style={{ color: "#444", fontSize: "0.75rem", fontWeight: "400" }}>— pago mínimo mensual</span></h3>
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={deudas} barSize={52} barCategoryGap="40%">
+                    <XAxis dataKey="nombre" stroke="#333" tick={{ fill: "#555" }} />
+                    <YAxis stroke="#333" tick={{ fill: "#555" }} />
+                    <Tooltip
+                      formatter={(v, name) => [`$${Number(v).toLocaleString("es-CO")}`, name === "monto_actual" ? "Saldo" : "Pago mínimo"]}
+                      contentStyle={{ background: "#111", border: "1px solid #2a2200", borderRadius: "8px", color: "#f0f0f0" }}
+                    />
+                    <Legend formatter={(v) => v === "monto_actual" ? "Saldo" : "Pago mínimo"} />
+                    <Bar dataKey="monto_actual" name="monto_actual" fill="#f87171" radius={[6, 6, 0, 0]} />
+                    <Bar dataKey="pago_minimo"  name="pago_minimo"  fill="#fb923c" radius={[6, 6, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+
             {/* tabla con los últimos 5 gastos para no mostrar todo de golpe */}
             <div style={s.tableCard}>
               <h3 style={s.chartTitle}>Últimos gastos</h3>
