@@ -7,17 +7,14 @@ gastos_bp = Blueprint("gastos", __name__)
 
 
 class GastosService:
-    """CRUD de registros de gastos del usuario."""
+    """CRUD operations for expense records."""
 
     @staticmethod
     def listar(user_id: int, periodo=None, categoria_id=None, fecha_inicio=None, fecha_fin=None) -> list:
-        # FiltersBuilder construye el WHERE dinámico según los filtros activos
         where, extra = FiltersBuilder.build(periodo, categoria_id, fecha_inicio, fecha_fin)
         params       = [user_id] + extra
 
         with Database.connect() as (cur, _):
-            # f-string solo para el WHERE generado por FiltersBuilder (seguro, no viene del usuario)
-            # los valores reales van en params como parámetros para evitar SQL injection
             cur.execute(f"""
                 SELECT g.id, c.nombre, g.motivo, g.monto, g.fecha
                 FROM gastos g
@@ -43,7 +40,6 @@ class GastosService:
 
     @staticmethod
     def editar(user_id: int, gasto_id: int, categoria_id, motivo: str, monto, fecha: str) -> None:
-        # el AND usuario_id=%s asegura que un usuario no pueda editar gastos de otro
         with Database.connect() as (cur, _):
             cur.execute("""
                 UPDATE gastos SET categoria_id=%s, motivo=%s, monto=%s, fecha=%s
@@ -52,7 +48,6 @@ class GastosService:
 
     @staticmethod
     def eliminar(user_id: int, gasto_id: int) -> None:
-        # el AND usuario_id=%s evita que un usuario borre gastos ajenos
         with Database.connect() as (cur, _):
             cur.execute(
                 "DELETE FROM gastos WHERE id = %s AND usuario_id = %s;",
@@ -77,7 +72,7 @@ def listar_gastos():
 @gastos_bp.route("/gastos", methods=["POST"])
 def crear_gasto():
     user_id      = TokenHelper.get_user_id(request)
-    data         = request.get_json() or {}
+    data         = request.get_json()
     categoria_id = data.get("categoria_id")
     motivo       = data.get("motivo")
     monto        = data.get("monto")
@@ -93,7 +88,7 @@ def crear_gasto():
 @gastos_bp.route("/gastos/<int:gasto_id>", methods=["PUT"])
 def editar_gasto(gasto_id):
     user_id      = TokenHelper.get_user_id(request)
-    data         = request.get_json() or {}
+    data         = request.get_json()
     categoria_id = data.get("categoria_id")
     motivo       = data.get("motivo")
     monto        = data.get("monto")

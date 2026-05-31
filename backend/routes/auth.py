@@ -10,18 +10,16 @@ auth_bp = Blueprint("auth", __name__)
 
 
 class AuthService:
-    """Lógica de negocio para registro, login y reseteo de contraseña."""
+    """Business logic for user registration, login, and password reset."""
 
     @staticmethod
     def register(nombre: str, email: str, password: str) -> int:
-        """Crea un usuario nuevo y retorna su id."""
-        # bcrypt genera un hash seguro con salt aleatorio incluido
+        """Create a new user and return the new user_id."""
         password_hash = bcrypt.hashpw(
             password.encode("utf-8"), bcrypt.gensalt()
         ).decode("utf-8")
 
         with Database.connect() as (cur, _):
-            # verifica duplicado antes de insertar para dar error claro
             cur.execute("SELECT id FROM usuarios WHERE email = %s;", (email,))
             if cur.fetchone():
                 raise AppError("El email ya está registrado.", 409)
@@ -34,7 +32,7 @@ class AuthService:
 
     @staticmethod
     def login(email: str, password: str) -> dict:
-        """Valida credenciales y retorna el JWT + datos del usuario."""
+        """Validate credentials and return token + user info."""
         with Database.connect() as (cur, _):
             cur.execute(
                 "SELECT id, nombre, password_hash FROM usuarios WHERE email = %s;",
@@ -42,8 +40,6 @@ class AuthService:
             )
             user = cur.fetchone()
 
-        # mismo mensaje para usuario no encontrado y contraseña incorrecta
-        # — así no se puede saber cuál de los dos falló (seguridad)
         if not user:
             raise AppError("Credenciales incorrectas.", 401)
 
@@ -52,7 +48,6 @@ class AuthService:
         if not bcrypt.checkpw(password.encode("utf-8"), password_hash.encode("utf-8")):
             raise AppError("Credenciales incorrectas.", 401)
 
-        # el token vence en 8 horas; el frontend lo guarda en localStorage
         token = jwt.encode(
             {
                 "user_id": user_id,
@@ -66,7 +61,7 @@ class AuthService:
 
     @staticmethod
     def reset_password(email: str, nueva_password: str) -> None:
-        """Actualiza el hash de contraseña para una cuenta existente."""
+        """Update the password for an existing account."""
         with Database.connect() as (cur, _):
             cur.execute("SELECT id FROM usuarios WHERE email = %s;", (email,))
             if not cur.fetchone():
@@ -85,7 +80,7 @@ class AuthService:
 
 @auth_bp.route("/register", methods=["POST"])
 def register():
-    data     = request.get_json() or {}
+    data     = request.get_json()
     nombre   = data.get("nombre")
     email    = data.get("email")
     password = data.get("password")
@@ -99,7 +94,7 @@ def register():
 
 @auth_bp.route("/login", methods=["POST"])
 def login():
-    data     = request.get_json() or {}
+    data     = request.get_json()
     email    = data.get("email")
     password = data.get("password")
 
@@ -111,7 +106,7 @@ def login():
 
 @auth_bp.route("/reset-password", methods=["POST"])
 def reset_password():
-    data           = request.get_json() or {}
+    data           = request.get_json()
     email          = data.get("email")
     nueva_password = data.get("nueva_password")
 
