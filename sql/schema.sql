@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS deudas (
     monto_actual NUMERIC(12,2) NOT NULL,
     interes_mensual NUMERIC(5,2) DEFAULT 0,
     pago_minimo NUMERIC(12,2) NOT NULL,
+    fecha_inicio DATE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

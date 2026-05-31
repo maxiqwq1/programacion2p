@@ -61,7 +61,7 @@ export default function Dashboard() {
       cargarAnalisis("mensual", "", "", ""),
       cargarFinanzas(),
       cargarDeudas(),
-    ]).finally(() => setCargando(false));
+    ]).catch(() => {}).finally(() => setCargando(false));
   }, []);
 
   async function cargarCategorias() {
@@ -132,8 +132,7 @@ export default function Dashboard() {
       pago_minimo: Number(formDeuda.pago_minimo),
     });
     setFormDeuda({ nombre: "", monto_actual: "", interes_mensual: "", pago_minimo: "", fecha_inicio: new Date().toISOString().split("T")[0] });
-    cargarDeudas();
-    cargarFinanzas();
+    await Promise.all([cargarDeudas(), cargarFinanzas()]);
     setToast({ message: "Deuda agregada.", type: "success" });
   }
 
@@ -288,11 +287,11 @@ export default function Dashboard() {
       checkPage(15); ttl("Deudas",12);
       bld("Sin deudas registradas - excelente!",9,green); y+=3; line();
     }
-    checkPage(20); ttl("Transacciones - "+filtroActivo+" ("+gastosFiltrados.length+" registros)",11);
+    checkPage(20); ttl("Transacciones - "+filtroActivo+" ("+gastos.length+" registros)",11);
     const colX=[15,62,130,168];
     doc.setFontSize(8); doc.setTextColor(...gray); doc.setFont("helvetica","bold");
     ["Categoria","Motivo","Monto","Fecha"].forEach((h,i)=>doc.text(h,colX[i],y)); y+=5; line([30,30,30]);
-    gastosFiltrados.slice(0,80).forEach(g=>{
+    gastos.slice(0,80).forEach(g=>{
       checkPage(7); doc.setFontSize(8); doc.setFont("helvetica","normal");
       doc.setTextColor(...white); doc.text(g.categoria.slice(0,14),colX[0],y);
       doc.setTextColor(...white); doc.text(g.motivo.slice(0,30),colX[1],y);
@@ -359,7 +358,7 @@ export default function Dashboard() {
     setFormErrors({});
     await Promise.all([
       fetchGastos(periodo, filtroCategoria, fechaInicio, fechaFin),
-      cargarAnalisis(),
+      cargarAnalisis(periodo, filtroCategoria, fechaInicio, fechaFin),
       cargarFinanzas(),
     ]);
     setActivePage("overview");
@@ -702,8 +701,8 @@ export default function Dashboard() {
               <table style={s.table}>
                 <thead>
                   <tr>
-                    {["Categoría", "Motivo", "Monto", "Fecha", ""].map((h) => (
-                      <th key={h} style={s.th}>{h}</th>
+                    {["Categoría", "Motivo", "Monto", "Fecha", ""].map((h, i) => (
+                      <th key={i} style={s.th}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -783,7 +782,7 @@ export default function Dashboard() {
             <table style={s.table}>
               <thead>
                 <tr>
-                  {["Categoría", "Motivo", "Monto", "Fecha", ""].map((h) => (
+                  {["Categoría", "Motivo", "Monto", "Fecha", ""].map((h, i) => (
                     <th key={h} style={s.th}>{h}</th>
                   ))}
                 </tr>
@@ -1021,7 +1020,7 @@ export default function Dashboard() {
                       <thead>
                         <tr>
                           {["Año", "Ingresos", "Gastos", "Deudas", "Ahorro neto", "Acumulado"].map(h => (
-                            <th key={h} style={s.th}>{h}</th>
+                            <th key={i} style={s.th}>{h}</th>
                           ))}
                         </tr>
                       </thead>

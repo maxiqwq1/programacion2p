@@ -7,10 +7,11 @@ categorias_bp = Blueprint("categorias", __name__)
 
 
 class CategoriasService:
-    """Category management — list, create, and delete expense categories."""
+    """Gestión de categorías de gasto: listar, crear y eliminar."""
 
     @staticmethod
     def listar() -> list:
+        # las categorías son globales (no por usuario), todos ven las mismas
         with Database.connect() as (cur, _):
             cur.execute("SELECT id, nombre FROM categorias ORDER BY nombre;")
             rows = cur.fetchall()
@@ -25,6 +26,7 @@ class CategoriasService:
                     (nombre,),
                 )
             except Exception:
+                # la tabla tiene un UNIQUE en nombre; psycopg2 lanza IntegrityError
                 raise AppError("Ya existe una categoría con ese nombre.", 409)
             new_id = cur.fetchone()[0]
         return {"id": new_id, "nombre": nombre}
@@ -32,6 +34,7 @@ class CategoriasService:
     @staticmethod
     def eliminar(cat_id: int) -> None:
         with Database.connect() as (cur, _):
+            # verifica que no haya gastos asociados antes de borrar
             cur.execute(
                 "SELECT COUNT(*) FROM gastos WHERE categoria_id = %s;",
                 (cat_id,),
@@ -51,7 +54,7 @@ def listar_categorias():
 @categorias_bp.route("/categorias", methods=["POST"])
 def crear_categoria():
     TokenHelper.get_user_id(request)
-    data   = request.get_json()
+    data   = request.get_json() or {}
     nombre = data.get("nombre", "").strip()
 
     if not nombre:

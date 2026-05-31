@@ -80,6 +80,8 @@ class FinanzasService:
         tasa_ahorro        = round(ahorro / sueldo * 100, 1) if sueldo > 0 else 0
         porcentaje_gastado = round((gastos_mes + total_deuda_mensual) / sueldo * 100, 1) if sueldo > 0 else 0
 
+        # semáforo financiero basado en tasa de ahorro
+        # excelente ≥20% | buena ≥10% | ajustada ≥0% | deficit <0%
         if tasa_ahorro >= 20:
             salud = "excelente"
         elif tasa_ahorro >= 10:
@@ -152,11 +154,17 @@ class SnowballService:
 
     @staticmethod
     def _fetch_base(cur, user_id: int):
-        """Fetch sueldo and average monthly expenses within an active cursor."""
+        """Obtiene sueldo y promedio mensual de gastos usando un cursor ya abierto.
+
+        Se reutiliza en calcular() y proyeccion() para no repetir las mismas queries.
+        Recibe el cursor como parámetro porque ambos métodos necesitan hacer más
+        queries en la misma conexión.
+        """
         cur.execute("SELECT sueldo FROM usuarios WHERE id = %s;", (user_id,))
         row    = cur.fetchone()
         sueldo = float(row[0]) if row and row[0] else 0
 
+        # promedio histórico de gastos por mes — base para proyecciones
         cur.execute("""
             SELECT COALESCE(AVG(total_mes), 0) FROM (
                 SELECT SUM(monto) as total_mes FROM gastos WHERE usuario_id = %s
@@ -184,16 +192,18 @@ class SnowballService:
         deudas = [{
             "nombre":  r[1],
             "saldo":   float(r[2]),
-            "interes": float(r[3]) / 100,
+            "interes": float(r[3]) / 100,  # % mensual → decimal (ej: 2.5 → 0.025)
             "minimo":  float(r[4]),
         } for r in rows]
 
         suma_minimos    = sum(d["minimo"] for d in deudas)
-        dinero_extra    = max(0, sueldo - promedio_gastos - suma_minimos)
-        viable          = (sueldo - promedio_gastos - suma_minimos) >= 0
+        dinero_extra    = max(0, sueldo - promedio_gastos - suma_minimos)  # plata libre para acelerar pagos
+        viable          = (sueldo - promedio_gastos - suma_minimos) >= 0   # False si no alcanza ni para los mínimos
         resultado       = []
         extra_acumulado = dinero_extra
 
+        # método bola de nieve: paga mínimos en todas y aplica el extra a la más pequeña
+        # al liquidarla, su mínimo se suma al extra para la siguiente (la bola crece)
         for i, deuda in enumerate(deudas):
             saldo              = deuda["saldo"]
             pago               = deuda["minimo"] + extra_acumulado
@@ -202,6 +212,7 @@ class SnowballService:
             interes_primer_mes = saldo * deuda["interes"]
 
             if pago <= interes_primer_mes and pago > 0:
+                # el pago no cubre ni el interés del primer mes — deuda impagable
                 meses = 9999
             else:
                 while saldo > 0.01 and meses < 600:
@@ -220,6 +231,7 @@ class SnowballService:
                 "interes_total":  round(interes_total, 2),
                 "orden":          i + 1,
             })
+            # deuda liquidada: su mínimo ahora está libre para la siguiente
             extra_acumulado += deuda["minimo"]
 
         meses_total = max(d["meses"] for d in resultado) if resultado else 0
@@ -328,7 +340,7 @@ def get_sueldo():
 @finanzas_bp.route("/sueldo", methods=["PUT"])
 def update_sueldo():
     user_id = TokenHelper.get_user_id(request)
-    sueldo  = request.get_json().get("sueldo", 0)
+    sueldo  = (request.get_json() or {}).get("sueldo", 0)
     FinanzasService.update_sueldo(user_id, sueldo)
     return jsonify({"message": "Sueldo actualizado."})
 
@@ -352,7 +364,7 @@ def listar_deudas():
 @finanzas_bp.route("/deudas", methods=["POST"])
 def crear_deuda():
     user_id         = TokenHelper.get_user_id(request)
-    data            = request.get_json()
+    data            = request.get_json() or {}
     nombre          = data.get("nombre")
     monto_actual    = data.get("monto_actual")
     interes_mensual = data.get("interes_mensual", 0)
